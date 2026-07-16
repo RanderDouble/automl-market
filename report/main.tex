@@ -9,17 +9,16 @@
 \usepackage{listings}
 \usepackage{enumitem}
 
-\geometry{left=2.3cm,right=2.3cm,top=2.4cm,bottom=2.4cm}
+\geometry{left=2.2cm,right=2.2cm,top=2.3cm,bottom=2.3cm}
 \hypersetup{colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black}
 \graphicspath{{../results/figures/}}
 \setlength{\parindent}{2em}
-\setlength{\parskip}{0.25em}
+\setlength{\parskip}{0.22em}
 \newtheorem{theorem}{定理}[section]
 \newtheorem{proposition}[theorem]{命题}
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{定义}
 \newcommand{\E}{\mathbb{E}}
-\newcommand{\ind}{\mathbb{I}}
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -30,281 +29,255 @@
 }
 
 \title{机器学习数据获取与数据定价\\
-\large 《Optimal Pricing for Data-Augmented AutoML Marketplaces》复现与改进阶段报告}
+\large 《Optimal Pricing for Data-Augmented AutoML Marketplaces》讲解与实验复现}
 \author{课程大作业 C.3}
-\date{2026年7月16日\quad 版本 0.3.0}
+\date{2026年7月16日\quad 版本 0.4.0}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-本文复现 Han 等人提出的数据增强型 AutoML 市场的核心机制：平台将买家数据与外部数据连接，联合搜索增强数据和模型，并按模型性能定价。理论部分实现了买家的马尔可夫最优停止动态规划、样本轨迹上的价格曲线优化、基于停止时间的买家先验学习，以及 Algorithm 2 的增强--模型老虎机发现过程。公开数据 RQ1 缩减复现基于 UCI Wine Quality 的红、白葡萄酒数据构造 60 个重复任务；在 60 次模型训练预算下，Data-Bandit 的最终效用与穷举 Data-All 相差仅 0.0012--0.0015，但达到 95\% oracle 增益所需训练数减少 27.5\%--30.3\%，且归一化发现曲线面积的配对优势在分类和回归上均不跨越 0。我们进一步指出，论文的经验定价程序式 (7)/(8) 与正文的“自愿购买”叙述存在不一致：程序强制每个买家从已发现模型中选择一个，即使所有模型的净效用均为负。加入不购买外部选项后，IR 定价把同分布测试收入从 0.275 提高到 0.375；不利先验偏移下，鲁棒 IR 收入为 0.280，相比普通 IR 提高 15.1\%。先验学习实验的 KL 散度由 0.0311 降至 0.0069。本文明确区分公开数据上的定性复现与原文不可获得的 69K NYC 数据池 Figure 3 逐点重现。
+本文解释并缩减复现 Han 等人提出的数据增强型 AutoML 市场。平台连续搜索外部数据增强与机器学习模型，性能过程由马尔可夫链描述；买家面对公开的性能--价格曲线，求解最优停止问题；平台从样本轨迹计算收入最大化价格，并从停止轮次学习未知买家先验。本文实现 Proposition~4.1/Algorithm~3 的停止动态规划、Theorem~4.2 对应的 MILP、Algorithm~1 的平滑贝叶斯学习和 Algorithm~2 风格的 Data-Bandit。
+
+RQ1 在 UCI Wine Quality 上构造 60 个公开可复现任务。Data-Bandit 相比 Data-All 的归一化发现曲线 AUC 在分类和回归上分别提高 0.00794 与 0.00335，配对 bootstrap 区间均不跨 0；达到 95\% oracle 增益所需训练数减少 30.3\% 与 27.5\%，但完整预算终点仍由 Data-All 最优。RQ2 在 10 个合成任务上复现 MILP、Independent、Shift、Jiggle 的 IS/OOS 比较：论文强制购买指标下 IS MILP 捕获 $0.7926\pm0.0098$ 的归一化福利；加入自愿购买后，指标排序发生变化。RQ3 覆盖 5 种真实先验、3 种学习率、2 种批量和 5 个随机种子，复现“大批量更平滑、常数学习率更易振荡、$1/\sqrt t$ 兼顾速度与稳定性”的定性结论。
+
+复现还揭示两个建模边界：论文 MILP 强制每个买家购买，且若不显式限制价格上界会无界；有限估值网格也不是一般多质量连续定价的精确解。本文如实记录 IR 修正和 HiGHS 求解边界，不把它们扩展为新的主要研究方向。由于原文 NYC 数据池、任务估值和完整代码未公开，本文所有结论均标注为公开数据或合成设置上的缩减复现，而非 Figure~3--5 的逐点重现。
 \end{abstract}
 
 \tableofcontents
 \newpage
 
-\section{问题描述与研究动机}
+\section{论文要解决什么问题}
 
-标准 AutoML 平台主要搜索模型和超参数，并按计算时间收费。论文~\cite{han2023}考虑另一类市场：买家只有少量训练数据，平台拥有可连接的外部数据池。平台一边寻找有用的增强特征，一边搜索模型，并持续向买家展示当前最优性能。买家可以决定继续搜索还是停止，并可购买已发现模型。
+传统 AutoML 主要搜索模型和超参数。本文研究的市场还拥有大量可连接的外部数据：买家带来一个小训练集，平台一边寻找有用的数据增强，一边训练模型，并持续展示当前最好性能。买家可以随时停止搜索，购买已经发现的某个模型；平台希望设计性能对应的价格，并控制发现过程的训练开销。
 
-该问题把两个通常分开的主题连接起来：其一是\textbf{数据获取}，即从大量外部表中寻找与当前任务有关的增强；其二是\textbf{数据定价}，即不直接出售原始表，而是按照增强最终带来的模型性能定价。核心困难在于：性能搜索是随机、序贯且有成本的，买家的性能估值又是私有信息，平台必须同时预判买家的停止行为与购买行为。
+三个问题彼此耦合：搜索结果是随机序列，价格会改变买家的停止时刻，不同买家对同一性能的估值不同，而平台通常不知道真实买家类型。论文据此提出三个技术问题：如何求价格、如何学习买家先验、如何以较少模型训练发现好的增强--模型组合。
 
-本文阶段工作的目标如下：
-\begin{enumerate}[label=(\arabic*)]
-  \item 理解并实现论文的马尔可夫最优停止、经验价格曲线和先验学习；
-  \item 在公开表格数据上缩减复现 RQ1 的 augmentation--model discovery；
-  \item 复现论文 RQ2/RQ3 所研究的定价与学习现象；
-  \item 找出机制中的可操作问题，给出理论修正并通过实验比较；
-  \item 建立可重复运行、可测试、可生成 PDF、可版本化管理的项目工程。
-\end{enumerate}
+\section{模型与一次交易的流程}
 
-\section{论文整体思路与建模}
-
-\subsection{市场参与者与性能过程}
-
-令离散性能集合为 $\mathcal Q=\{q_1,\dots,q_K\}$，搜索时刻为 $t=1,\dots,T$。当前性能按照时变马尔可夫链演化：
+令离散性能集合为 $\mathcal Q=\{q_1,\ldots,q_K\}$，最长搜索轮数为 $T$。当前性能按时变马尔可夫链演化：
 \[
-  P^t(q'\mid q)=\Pr(Q_{t+1}=q'\mid Q_t=q).
+P^t(q'\mid q)=\Pr(Q_{t+1}=q'\mid Q_t=q).
 \]
-买家私有类型为 $\theta\in\Theta$，类型决定估值曲线 $v^\theta(q)$；平台仅知道类型先验 $\mu(\theta)$。平台事先发布统一价格曲线 $x:\mathcal Q\to\mathbb R_+$。若买家在时刻 $\tau$ 停止并购买性能 $q$ 的模型，效用为
+买家私有类型为 $\theta\in\Theta$，估值曲线为 $v^\theta(q)$；平台知道或估计类型先验 $\mu(\theta)$。平台在搜索开始前发布价格曲线 $x(q)\ge0$。若买家在第 $\tau$ 轮购买质量 $q$，效用是
 \[
-  u^\theta(q,\tau)=v^\theta(q)-x(q)-c\tau,
+u^\theta(q,\tau)=v^\theta(q)-x(q)-c\tau,
 \]
-其中 $c$ 是每轮真实发现成本。平台的主要收入是模型支付 $x(q)$，发现成本 $c\tau$ 用于覆盖搜索成本。
+其中 $c$ 是每轮真实发现成本。平台的模型收入是 $x(q)$；$c\tau$ 影响买家是否继续等待，但不是模型价格收入。
 
-\subsection{买家最优停止动态规划}
+一次交易可概括为：公布价格；发现引擎依次产生性能；买家每轮比较停止与继续；停止后从已发现模型中选净效用最高者；平台观察支付和停止时间。全文的定价、学习和数据发现算法分别服务于这条流程的不同环节。
 
-状态 $(q_1,q_2,t)$ 分别记录当前净价值最高的历史性能、当前性能和时刻。令 $\Phi(q_1,q_2,t)$ 为从该状态出发的最优期望效用，则论文的递推为
+\section{买家最优停止：Proposition 4.1}
+
+\subsection{为什么状态是三维的}
+
+买家停止时可以购买历史中任一模型，不一定购买当前模型。DP 状态 $(q_1,q_2,t)$ 中，$q_1$ 表示历史上使 $v^\theta(q)-x(q)$ 最大的质量，$q_2$ 是当前质量，$t$ 是当前轮次。未来转移只依赖 $q_2$，停止收益只依赖 $q_1$，因此完整历史可被这两个质量压缩。
+
+令 $\Phi(q_1,q_2,t)$ 为状态的最优期望效用，则 Bellman 递推为
 \begin{align}
 \Phi(q_1,q_2,t)=\max\Big\{&v^\theta(q_1)-x(q_1)-ct,\\
 &\E_{q\sim P^t(\cdot\mid q_2)}
-\Phi\big(\arg\max_{r\in\{q_1,q\}}[v^\theta(r)-x(r)],q,t+1\big)\Big\}.
+\Phi\big(B(q_1,q),q,t+1\big)\Big\},
 \end{align}
+其中 $B(q_1,q)$ 返回二者中净价值较高的质量。第一项是立即停止，第二项是继续一期。$t=T$ 时只能停止，从终点向前递推即可。
 
 \begin{proposition}[论文 Proposition 4.1]
-给定价格曲线、类型估值与转移矩阵，买家的最优停止策略可在 $O(|\mathcal Q|^2T)$ 时间内由动态规划计算。
+给定估值、价格和转移矩阵，买家的最优停止策略可通过有限状态动态规划在论文给出的 $O(|\mathcal Q|^2T)$ 量级内计算。
 \end{proposition}
 
-\textbf{证明 insight。}未来性能仅依赖当前性能 $q_2$，历史只需保留“目前净价值最高的性能”$q_1$，因此状态空间是 $|\mathcal Q|^2T$。从 $T$ 时刻的强制停止边界条件向前递推，每个状态比较立即停止与继续一期的期望效用。若转移期望通过矩阵运算实现，总复杂度为论文给出的多项式量级；我们的实现保留了显式状态循环，便于逐项核对。
+证明的关键不是复杂技巧，而是找到了充分状态：历史只保留“当前净价值最佳质量”。代码 \texttt{market.py} 实现了值函数、继续策略、轨迹停止时刻以及按 Markov 状态分布传播的精确期望支付。
 
-\subsection{样本轨迹上的价格曲线}
+\section{样本轨迹定价：MILP 与 Theorem 4.2}
 
-当发现成本相对估值可忽略时，论文把一条性能轨迹 $s=[q_1,\dots,q_T]$ 看成可购买质量集合，并定义
+\subsection{从动态过程到可购买集合}
+
+Theorem~4.2 假设发现成本相对估值和价格可忽略。一条性能轨迹可压缩成可购买质量集合 $s$，类型 $\theta$ 的买家选择
 \[
 q^*(\theta,x,s)\in\arg\max_{q\in s}\{v^\theta(q)-x(q)\}.
 \]
-经验收入目标为
-\begin{equation}\label{eq:forced}
+给定 $m$ 条样本轨迹 $S$，经验收入目标是
+\begin{equation}\label{eq:sample-revenue}
 \max_x\sum_\theta\mu(\theta)\frac1m\sum_{s\in S}x(q^*(\theta,x,s)).
 \end{equation}
-论文使用二元变量 $z(\theta,s,q)$ 表示选择，连续变量 $y=x(q)z$ 表示支付，并用 Big-$M$ 约束将双层问题线性化为 MILP。
+外层平台选择价格，内层买家最优响应，因此原问题是双层优化。
+
+\subsection{MILP 四类变量}
+
+论文引入价格 $x(q)$、最大净效用 $a_{\theta,s}$、选择变量 $z_{\theta,s,q}\in\{0,1\}$ 和支付变量 $y_{\theta,s,q}=x(q)z_{\theta,s,q}$。Big-$M$ 约束使被选择质量满足
+\[
+a_{\theta,s}=v^\theta(q)-x(q),
+\]
+而所有其他质量的净效用不超过 $a_{\theta,s}$。乘积通过
+\begin{align*}
+y&\le x, & y&\le Mz,\\
+y&\ge x-M(1-z), & y&\ge0
+\end{align*}
+线性化。于是 $z=0$ 时 $y=0$，$z=1$ 时 $y=x$，目标函数最大化 $y$ 的先验加权平均。
 
 \begin{theorem}[论文 Theorem 4.2]
-若发现成本可忽略、估值上界为 $b$，取
+若估值和收入由 $b$ 有界，且发现成本可忽略，取
 \[
 m=\frac{b^2}{2\epsilon^2}\ln\frac{2}{\delta}
 \]
-条独立样本轨迹，则 MILP 得到的价格曲线以至少 $1-2\delta$ 的概率是总体最优价格曲线的加性 $\epsilon$ 近似。
+条独立样本轨迹，则论文的经验最优价格以高概率给出总体最优收入的加性 $\epsilon$ 近似。
 \end{theorem}
 
-\textbf{证明 insight。}第一步证明 MILP 精确表示有限样本上的最优响应和支付；第二步对固定价格曲线使用 Hoeffding 不等式控制经验收入与总体收入的偏差，再比较经验最优解与总体最优解。关键意义是：定价不要求显式恢复完整马尔可夫链，只需采样发现轨迹即可获得 PAC 风格保证。
+证明分两步：先证明 MILP 精确编码有限样本上的最优响应；再对有界收入使用 Hoeffding 不等式，控制经验平均与总体期望的偏差，并比较经验最优解和总体最优解。其意义是平台可以直接从轨迹学习价格，不必先完整恢复 Markov 链。
 
-\subsection{未知先验的贝叶斯学习}
+\subsection{复现时发现的边界}
 
-论文根据观测到的停止轮次 $y^{(t)}$ 更新类型信念：
+论文式约束 $\sum_qz_{\theta,s,q}=1$ 强制每个买家购买，即使全部净效用为负。若只给出 $x(q)\ge0$ 而没有有限上界，同时给所有质量价格增加常数不会改变选择，却会无限增加收入，因此强制购买模型会无界。我们的 HiGHS 后端显式加入有限价格上界；IR 版本加入零价值、零价格的不购买选项。
+
+原有“估值诱导网格”也只能称为有限网格基线。在多质量情况下，跨质量效用无差异平面可能产生不等于任何单项观测估值的最优价格。当前小实例上，强制选择网格/MILP 收入分别为 0.48809/0.49971，IR 网格/MILP 分别为 0.36614/0.38399。这一差异用于纠正实现说明，不作为新的优化主线。
+
+\section{未知先验学习：Algorithm 1 与 Theorem 5.2}
+
+平台不知道真实类型，但可以观察停止轮次 $y^{(t)}$。若已知在当前价格下各类型的停止似然，Bayes 后验为
 \[
-w^{(t)}(\theta_i)=
-\frac{\Pr(y^{(t)}\mid\theta_i,x^{(t)})\mu^{(t)}(\theta_i)}
-{\sum_j\Pr(y^{(t)}\mid\theta_j,x^{(t)})\mu^{(t)}(\theta_j)},\qquad
+w^{(t)}(\theta_i)=\frac{\Pr(y^{(t)}\mid\theta_i,x^{(t)})\mu^{(t)}(\theta_i)}
+{\sum_j\Pr(y^{(t)}\mid\theta_j,x^{(t)})\mu^{(t)}(\theta_j)},
+\]
+再做平滑更新
+\[
 \mu^{(t+1)}=(1-\eta_t)\mu^{(t)}+\eta_tw^{(t)}.
 \]
-在可识别性成立时，反复交互使估计先验趋近真实先验。论文进一步定义估计误差代价 CEE，即使用估计的 $(\mu,P)$ 定价而在真实 $(\mu^*,P^*)$ 下损失的收入。
+可识别性是必要条件：不同类型必须产生可区分的停止分布，否则只观察停止时间无法恢复类型比例。
 
-\begin{theorem}[论文 Theorem 5.2]
-若 $\|\mu-\mu^*\|_2\le\epsilon$ 且 $\|P-P^*\|_2\le\epsilon$，则估计错误导致的收入损失满足 $\mathrm{CEE}(\mu,P)=O(\epsilon)$。
-\end{theorem}
+论文还定义估计误差代价 CEE：平台用估计的 $(\mu,P)$ 设计价格，却在真实的 $(\mu^*,P^*)$ 下获得收入。Theorem~5.2 说明，当先验和转移矩阵的二范数误差均不超过 $\epsilon$ 时，$\mathrm{CEE}=O(\epsilon)$。证明直觉是先验误差线性改变类型加权，转移误差经有限时域 DP 逐层传播，最后用三角不等式比较真实最优和估计最优价格。
 
-证明思路是分别控制先验误差对收入加权的影响，以及转移矩阵扰动经动态规划递推产生的效用误差，再通过三角不等式合并。
+\section{数据增强--模型发现：Algorithm 2}
 
-\subsection{数据增强--模型发现}
+枚举所有增强子集和模型需要指数级训练。Algorithm~2 将每个模型看作 Exp3 的一只臂：增强发现模块每轮提出候选增强，只抽取一个模型训练，用重要性加权奖励更新模型概率。这样避免对每个增强训练全部模型。
 
-暴力枚举增强集合和模型需要 $O(2^{|\mathcal P|}|\mathcal M|)$ 次训练。论文 Algorithm 2 在 Metam 数据发现框架上加入 Exp3 对抗多臂老虎机：每个模型视为一只臂，每轮只训练一个模型；增强候选通过相似性聚类及 Thompson/贪心策略选择。本文保留其关键预算语义，实现 Data-Bandit、Data-All、Data-Alt 与不使用外部数据的 AutoML 四种方法。由于论文的 69K NYC 数据集池、Metam 配置和完整市场实现未公开，本文采用公开数据构造透明的小规模连接任务，并把结论限定为算法行为和样本效率的定性复现，而非 Figure 3 的逐点重现。
+本文实现四种比较方法：Data-Bandit 每轮抽样一个模型；Data-All 对候选增强训练全部模型；Data-Alt 轮换模型；AutoML 不使用外部增强。原文依赖 Metam、约 69K NYC Open Data 数据池和多种 AutoML 系统，但这些任务与完整实现未公开，因此 RQ1 改用透明公开数据，保留查询预算和模型训练次数的核心语义。
 
-\section{实现设计与可复现性}
+\section{实验设置与复现入口}
 
-代码分为五个核心模块：
-\begin{itemize}
-  \item \texttt{market.py}：马尔可夫轨迹采样、三维停止 DP、策略执行；
-  \item \texttt{pricing.py}：式~\eqref{eq:forced}、IR 收入、价格候选网格与 independent baseline；
-  \item \texttt{learning.py}：停止时间似然下的平滑贝叶斯更新；
-  \item \texttt{discovery.py}：公开表格数据加载、模型族评分表及四种 RQ1 发现策略；
-  \item \texttt{experiments.py}：固定种子数据生成、训练/测试/OOS 评估和作图。
-\end{itemize}
-
-实验使用 $|\mathcal Q|=4$、$|\Theta|=6$、$T=6$、240 条训练轨迹和 4000 条测试轨迹。价格候选取每个质量上的 0 与所有类型估值，共精确枚举 $7^4=2401$ 条曲线。随机种子为 20260716。以下命令会依次运行测试、实验并编译本报告：
+环境由 \texttt{environment.yml} 固定，包含 Python、NumPy、Matplotlib 和 HiGHS。随机种子固定为 20260716。主要命令为：
 \begin{lstlisting}
-make all
+conda env create -f environment.yml
+conda activate automl-market
+make test
+make rq1
+make paper-experiments
+make report
 \end{lstlisting}
-原始数值同时保存为 \texttt{results/summary.json}、\texttt{results/rq1\_summary.json}
-及 \texttt{results/tables/} 下的逐任务 CSV，避免只能从图中读取结果。RQ1 使用 30 个分类和
-30 个回归重复任务；每个任务的验证集只用于选择模型，测试集只用于报告当前验证集 incumbent，
-配对 bootstrap 使用固定种子和 10000 次重采样。
 
-\section{机制问题与改进方案}
+RQ1 从项目内 UCI Wine Quality 归档读取红、白数据，构造 60 个分类/回归重复任务；验证集用于模型选择，测试集只用于报告。RQ2 使用 10 个随机合成任务，$|\mathcal Q|=4,|\Theta|=6$，100 条 IS 训练轨迹和 4000 条 Markov OOS 测试轨迹。RQ3 使用 5 个买家类型、10 个质量、15 轮搜索、1000 轮学习、批量 10/100 和 5 个随机种子。
 
-\subsection{问题：定价程序缺少“不购买”选项}
-
-正文称模型价格 $x(q)$ 是买家自愿支付，但式~\eqref{eq:forced} 以及 MILP 约束
-$\sum_{q\in s}z(\theta,s,q)=1$ 强制每个类型在每条轨迹上选择一个模型。若
-\[
-\max_{q\in s}\{v^\theta(q)-x(q)\}<0,
-\]
-真实理性买家应不购买，而原程序仍选择“亏损最少”的模型并把 $x(q)$ 记为平台收入。因此，经验目标可能偏好不可实施的高价。
-
-\subsection{改进一：个体理性（IR）外部选项}
-
-加入虚拟选项 $\bot$，令 $v^\theta(\bot)=x(\bot)=0$，将选择集合改为
-$s\cup\{\bot\}$：
-\begin{equation}\label{eq:ir}
-q^*_{\mathrm{IR}}\in\arg\max_{q\in s\cup\{\bot\}}
-\{v^\theta(q)-x(q)\}.
-\end{equation}
-在 MILP 中只需增加 $z(\theta,s,\bot)$，保留选择和为 1，并固定其价格、估值和支付为 0；或者增加约束使购买选项的效用非负。
-
-\begin{proposition}[IR 修正的性质]
-式~\eqref{eq:ir} 对每个类型和轨迹均满足事后个体理性。对任意固定价格曲线，允许退出后的可实现收入不高于强制选择目标；两者相等当且仅当强制目标选择的模型在所有正概率类型--轨迹对上均具有非负净效用（忽略零效用处的平局规则）。
-\end{proposition}
-
-\textbf{证明。}外部选项效用为 0，因此最优选择的效用至少为 0，得到个体理性。强制选择与 IR 选择的差异只发生在所有模型效用均小于 0 的事件上；强制目标在该事件中记录正价格，IR 目标记录 0，故前者逐样本不小于后者。没有此类正概率事件时两目标一致，反之严格产生虚假支付。\hfill$\square$
-
-\subsection{改进二：先验偏移下的鲁棒 IR 定价}
-
-真实市场的类型先验会变化。设 $\mathcal U$ 是由当前估计先验、均匀先验、低支付意愿偏移和高支付意愿偏移组成的候选集合，我们求解
-\[
-\max_{x\ge0}\min_{\mu\in\mathcal U}
-\E_{\theta\sim\mu,s\sim S}[x(q^*_{\mathrm{IR}}(\theta,x,s))].
-\]
-该 max--min 目标牺牲部分同分布平均收入，换取先验变化时的收入下界。小规模实验仍可精确枚举；大规模版本可在原 MILP 上增加场景收入变量 $r$，并对每个 $\mu\in\mathcal U$ 加入 $r\le\mathrm{Rev}_{\mu}(x)$。
-
-\section{实验结果与分析}
-
-\subsection{RQ1：公开数据上的增强--模型发现}
-
-实验采用 UCI Wine Quality 红、白葡萄酒数据~\cite{uci186}。每次划分中，前两个理化指标构成买家的基础表，其余九个指标分别视为可按不可变行键连接的外部表；候选增强按训练集上的目标相关系数排序，作为 Metam profile/likelihood 的透明小规模替代。分类任务为判断质量是否至少为 6，回归任务直接预测质量；每种颜色重复 15 次，共得到每类问题 30 个配对任务。模型池包含四个不同岭惩罚的线性模型、二次特征模型和随机 ReLU 特征模型，统一预算为 60 次训练。
+\section{RQ1：增强--模型发现}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.98\textwidth]{rq1_discovery.pdf}
-\caption{公开数据 RQ1 缩减复现。曲线为训练预算不超过横轴数值时可达到的测试效用均值及 95\% 置信带；方法结束后用其最终效用向右延伸。右图统计达到“基础效用到完整验证 oracle 增益的 95\%”所需训练次数，61 表示预算内未达到。}
+\includegraphics[width=0.96\textwidth]{rq1_discovery.pdf}
+\caption{公开 UCI 任务上的发现曲线。阴影表示重复任务不确定性；横轴是实际模型训练次数。}
 \label{fig:rq1}
 \end{figure}
 
 \begin{table}[H]
 \centering
-\caption{最多 60 次训练预算下的 RQ1 结果。AUC 是预算 $1,\ldots,60$ 下验证集 incumbent 测试效用的均值，方法提前结束后沿用其最终效用；括号内为标准误。}
-\small
-\begin{tabular}{llrrr}
+\caption{RQ1 关键结果。AUC 差为 Data-Bandit 减 Data-All。}
+\begin{tabular}{lrrrr}
 \toprule
-任务 & 方法 & 最终效用 & 归一化 AUC & 达到 95\% 增益的训练数\\
+任务 & Bandit 最终效用 & All 最终效用 & AUC 差与 95\% CI & 95\% 增益训练节省\\
 \midrule
-分类 & Data-Bandit & 0.7393 (0.0045) & \textbf{0.7381} & \textbf{11.93}\\
-     & Data-All    & \textbf{0.7408} (0.0039) & 0.7301 & 17.13\\
-     & Data-Alt    & 0.7360 (0.0049) & 0.7342 & 15.97\\
-     & AutoML      & 0.6619 (0.0052) & 0.6622 & 59.00\\
-\midrule
-回归 & Data-Bandit & 0.5459 (0.0026) & \textbf{0.5449} & \textbf{18.43}\\
-     & Data-All    & \textbf{0.5471} (0.0025) & 0.5416 & 25.43\\
-     & Data-Alt    & 0.5459 (0.0026) & 0.5441 & 20.47\\
-     & AutoML      & 0.5126 (0.0018) & 0.5126 & 61.00\\
+分类 & 0.73931 & 0.74083 & $0.00794\ [0.00340,0.01220]$ & 30.3\%\\
+回归 & 0.54590 & 0.54715 & $0.00335\ [0.00185,0.00481]$ & 27.5\%\\
 \bottomrule
 \end{tabular}
-\label{tab:rq1}
 \end{table}
 
-Data-All 在完整预算末端取得最高效用，这是穷举所有增强--模型组合的预期结果；Data-Bandit 的最终差距仅为分类 0.00153、回归 0.00124。更重要的是，Data-Bandit 达到 95\% oracle 增益的平均训练数相对 Data-All 分别减少 30.3\% 和 27.5\%，并在分类、回归的归一化 AUC 上分别领先 0.00794 和 0.00335。对同一数据划分做配对 bootstrap 后，95\% 区间分别为 $[0.00340,0.01220]$ 与 $[0.00185,0.00481]$，Data-Bandit 分别在 24/30 和 23/30 个任务上胜过 Data-All。相对 Data-Alt 的 AUC 均值虽为正，但区间跨越 0，因此证据只支持“与 Data-Alt 相当”，不能声称稳定优于它。AutoML 不搜索外部数据，在两类任务上均明显落后。由此，本实验支持论文 RQ1 的核心样本效率结论，但不支持把数值外推到原文 NYC 市场规模。
+Data-Bandit 在早期和中期预算下更快找到高质量组合，因此发现曲线面积优于 Data-All；但当 Data-All 用满 60 次训练，它仍取得最佳终点。Data-Bandit 与 Data-Alt 的 AUC 差在分类和回归上的区间都跨 0，故只能报告二者可比，不能声称 Bandit 显著更好。该结果复现的是论文“少训练、较快找到好组合”的定性结论，不是 Figure~3 的逐点复刻。
 
-\subsection{定价结果}
+\section{RQ2：定价方法比较}
+
+论文 Appendix~D.1 的 Independent 对每个质量单独求垄断价格；Shift 在所有质量上共同移动估值秩；Jiggle 从最优 Shift 出发，对高选择概率质量提价、低选择概率质量降价，并只接受严格改进。因而在训练样本的论文目标下有 Jiggle 不劣于 Shift、Shift 不劣于 Independent。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{rq2_paper_reproduction.pdf}
+\caption{RQ2 缩减复现：论文强制购买指标与加入外部选项后的实现收入。误差条为 10 个随机任务的标准误。}
+\label{fig:rq2}
+\end{figure}
 
 \begin{table}[H]
 \centering
-\caption{价格机制收入比较。所有“实现收入”均允许买家不购买。}
+\small
+\caption{RQ2 归一化收入，均值 $\pm$ 标准误。}
 \begin{tabular}{lrrrr}
 \toprule
-机制 & 论文式训练目标 & 训练实现 & IS 测试 & OOS 测试\\
+方法 & 强制 IS & 强制 OOS & 实现 IS & 实现 OOS\\
 \midrule
-Paper forced-choice & 0.4881 & 0.2687 & 0.2749 & 0.1106\\
-Independent & 0.3361 & 0.3245 & 0.3280 & 0.2169\\
-IR-aware（本文） & 0.4161 & \textbf{0.3661} & \textbf{0.3746} & 0.2436\\
-Robust IR（本文） & 0.3426 & 0.3327 & 0.3367 & \textbf{0.2805}\\
+MILP (IS) & $0.7926\pm0.0098$ & $0.8678\pm0.0094$ & $0.4263\pm0.0164$ & $0.4075\pm0.0138$\\
+Independent & $0.4880\pm0.0130$ & $0.5654\pm0.0131$ & $0.4880\pm0.0130$ & $0.5468\pm0.0119$\\
+Shift & $0.6157\pm0.0183$ & $0.7205\pm0.0153$ & $0.4007\pm0.0221$ & $0.3789\pm0.0221$\\
+Jiggle & $0.6353\pm0.0214$ & $0.7389\pm0.0176$ & $0.4171\pm0.0181$ & $0.3982\pm0.0166$\\
+OOS-informed MILP & $0.7898\pm0.0101$ & $0.8726\pm0.0090$ & $0.4279\pm0.0190$ & $0.4151\pm0.0159$\\
 \bottomrule
 \end{tabular}
-\label{tab:pricing}
 \end{table}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.94\textwidth]{pricing_comparison.pdf}
-\caption{加入不购买选项后，各价格曲线的可实现收入。OOS 将更多概率质量移向低支付意愿类型。}
-\label{fig:pricing}
-\end{figure}
+强制购买指标下，MILP 的 IS 归一化收入约为 79.3\%，定性接近原文 Figure~4 中约 85\% 的福利捕获；Shift/Jiggle 的训练目标改进关系也得到复现。加入不购买选项后，Independent 在本缩减设置中取得最高实现收入。这不是 Independent 的普遍最优性结论，而是说明强制支付目标和自愿购买收入并不等价。
 
-论文式强制选择解的训练目标为 0.4881，但训练实现收入只有 0.2687，说明目标中包含大量不会发生的支付。其价格曲线为 $(0.22,0.39,0.70,1.02)$；按类型先验计，80\% 的类型在至少一类可达集合上会因负效用而退出。IR-aware 直接优化真实购买行为，在 IS 测试上达到 0.3746，相比论文式价格提高 36.3\%。
+\section{RQ3：从停止时间学习先验}
 
-OOS 场景把先验更多地移向低支付意愿类型。普通 IR 收入从 0.3746 降为 0.2436，而鲁棒 IR 采用更平缓的价格 $(0.20,0.25,0.31,0.50)$，获得 0.2805：相对普通 IR 提高 15.1\%，相对论文式价格提高 153.6\%。代价是 IS 收入比普通 IR 低 10.1\%。这符合 max--min 定价的预期权衡。
-
-\subsection{先验学习结果}
-
-为满足论文的可识别性要求，我们设置一个零模型价格的短期探索阶段，并保留每轮发现成本 $c=0.03$。不同估值曲线因“继续等待高性能”的意愿不同而产生不同停止时间分布。每轮使用 100 个买家观测，学习率为 $1/\sqrt t$。
+实验显式构造五种可区分停止分布，其平均停止轮次约为 1.0、4.0、7.2、10.2、12.6，最小成对 $L_1$ 距离约 0.656。比较学习率 $1/(t+1)$、$1/\sqrt t$ 和常数 $1/2$。
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.94\textwidth]{prior_learning.pdf}
-\caption{基于停止轮次的买家类型先验学习。}
-\label{fig:learning}
+\includegraphics[width=0.96\textwidth]{rq3_paper_reproduction.pdf}
+\caption{RQ3 缩减复现：随机先验、批量 100 的平均 KL 曲线，以及不同先验、学习率和批量的最终 KL。}
+\label{fig:rq3}
 \end{figure}
 
-KL 散度从均匀初始化时的 0.0311 降至 0.0069，复现了论文 RQ3 的定性结论：只观察停止时间也能逐步恢复类型先验。但类型 4--6 的停止分布仍较接近，最终概率存在混淆；这也说明论文定理中的“可识别性”不是自动成立的，平台需要设计具有信息量的探索价格或收集额外行为信号。
+\begin{table}[H]
+\centering
+\caption{随机先验、批量 100、1000 轮后的 KL 散度。}
+\begin{tabular}{lrr}
+\toprule
+学习率 & 最终 KL（均值 $\pm$ 标准误） & 尾部标准差\\
+\midrule
+$1/(t+1)$ & $0.03752\pm0.01698$ & 0.00008\\
+$1/\sqrt t$ & $0.00684\pm0.00444$ & 0.00019\\
+$1/2$ & $0.00519\pm0.00166$ & 0.00353\\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection{运行结果与测试证据}
+更激进学习率收敛较快，但常数 $1/2$ 不会随时间减小，因此尾部持续受抽样噪声影响。批量 10 时，常数 $1/2$ 在五种先验上的平均最终 KL 约 0.1965，尾部标准差约 0.0488；批量 100 明显更稳定。$1/\sqrt t$ 在多数设置中给出更好的速度--稳定性折中，与论文 RQ3 和 Appendix~D.2 的定性结论一致。
 
-\begin{lstlisting}
-$ make test
-Ran 8 tests in 0.026s
-OK
+\section{补充记录：IR 修正与求解器边界}
 
-$ make rq1
-Completed RQ1 on 60 repeated tasks.
+为了验证强制购买语义的影响，我们保留原有合成实验。论文式网格价格的训练目标为 0.4881，但加入自愿购买后 IS 测试收入仅 0.2749；IR-aware 价格的 IS 收入为 0.3746，提高 36.3\%。不利先验偏移下，普通 IR 为 0.2436，鲁棒 IR 为 0.2805，提高 15.1\%。这些数字用于说明外部选项的重要性，而不是替代论文 RQ2。
 
-$ make experiment
-Completed 4 pricing schemes.
-Results: results/summary.json
-\end{lstlisting}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{pricing_comparison.pdf}
+\caption{原有机制边界实验：强制购买目标、IR 和鲁棒 IR 的实现收入。}
+\end{figure}
 
-单元测试覆盖：马尔可夫采样可重复性、DP 的继续/停止判断、缺少外部选项产生不可实现收入、单质量情形下 IR 网格解与垄断价格的一致性、四种发现方法的预算约束、Data-All oracle 性质、相对增益训练数以及配对 bootstrap 的确定性。
+对 $|\mathcal Q|=20,|\Theta|=20,m=100$ 的探索性 HiGHS 模型，重复轨迹压缩后仍有 4220/4580 个变量和 9960/10320 个约束。60 秒运行的强制/IR 模型最优性间隙分别约 57.6\%/568\%。因此本文不宣称完成论文规模的最优 MILP，只把它记录为开源求解器和当前建模的透明边界，并按课程重点停止进一步性能调优。
 
-\section{局限性、后续计划与中期展示安排}
+\section{测试、可复现性与限制}
 
-当前阶段已完成公开数据上的 RQ1 缩减复现，但仍有三项重要边界。第一，论文的大规模 NYC 数据池和作者完整实现未公开，因此不能把本实验视为 Data-Bandit Figure 3 的逐点重现；第二，当前精确价格网格只适用于小 $|\mathcal Q|$，最终版本应增加 Gurobi/SCIP 的 MILP 接口；第三，RQ1 已有重复划分和配对区间，但 RQ2/RQ3 定价与先验学习结果仍主要来自单个固定随机种子。
+当前 14 个测试覆盖：Markov 采样确定性；停止 DP；外部选项和精确期望支付；强制与 IR 收入差异；单质量垄断价格；小实例 MILP 目标审计；重复可达集合压缩；Shift/Jiggle 训练目标关系；三种学习率；RQ1 的预算、oracle 和 bootstrap 统计。未安装可选的 \texttt{highspy} 时只跳过三个 MILP 测试，基础路径仍可运行。
 
-后续按以下顺序推进：
-\begin{enumerate}[label=(\arabic*)]
-  \item 在 $|\mathcal Q|=20,|\Theta|=20,m=100$ 的论文设置上运行 MILP；
-  \item 对先验偏移强度、发现成本和转移矩阵估计误差做消融实验；
-  \item 运行 20--50 个随机种子并报告均值、标准差和显著性；
-  \item 根据课堂反馈迭代已完成的 17 页中期展示与讲稿；
-  \item 将本报告扩写为最终报告，补齐完整实验环境、消融表格与附录证明。
-\end{enumerate}
+本文有三项主要限制。第一，原文 RQ1 的 NYC 数据池、Metam 配置和完整实现未公开，公开数据复现只能验证定性行为。第二，原文 RQ2 的 School 数据估值和代码未提供，本文不能逐点还原 Figure~4。第三，RQ3 的似然由透明的合成 Markov 环境生成，验证的是学习率、批量和可识别性现象，而不是复刻作者的每一个随机实例。
+
+所有原始 CSV/JSON、图、环境文件和构建命令均保存在工程中。详细的中文阅读路线见 \path{docs/paper_walkthrough.md}。
 
 \section{结论}
 
-本文建立了一个可运行、可测试和可版本化的复现工程，实现了论文的增强--模型发现、最优停止、经验定价与先验学习核心。公开数据实验表明，Data-Bandit 能以更小训练预算接近 Data-All 的最终效用；机制分析同时发现，论文经验程序缺少“不购买”选项，会把负效用买家的强制支付误记为收入。加入外部选项后，定价目标与正文的自愿购买语义一致，并在合成实验中显著提高可实现收入；鲁棒 IR 定价则对买家先验偏移更稳定。当前证据支持这些定性结论，但最终结论仍需通过 RQ2/RQ3 多种子实验、论文规模 MILP 和转移误差消融加强。
+本项目已经形成从论文理解到实验复现的完整链条：用 DP 描述买家停止，用样本平均 MILP 描述平台定价，用停止似然学习市场先验，用 Data-Bandit 控制增强--模型搜索预算。RQ1/RQ2/RQ3 的缩减实验均复现了论文的主要定性现象，同时对不可获得数据和代码造成的边界作了明确说明。
+
+最重要的复现认识有三点：买家状态必须同时记录历史最佳净价值和当前 Markov 状态；论文 MILP 的统计保证建立在有限有界收入和强制选择目标上；停止时间能够学习类型先验的前提是行为可识别。已有 IR、鲁棒性和连续 MILP 结果被保留为辅助分析，后续课程工作优先围绕讲解、复现实验核验和展示组织，而不再扩展大规模优化探索。
 
 \begin{thebibliography}{9}
 \bibitem{han2023}
 Y. Han, S. Padmanabha, S. Wang, Z. Huang, and J. Zhao.
 \newblock Optimal Pricing for Data-Augmented AutoML Marketplaces.
 \newblock arXiv preprint, 2023 (local manuscript revision used in this project).
+
 \bibitem{uci186}
 P. Cortez, A. Cerdeira, F. Almeida, T. Matos, and J. Reis.
 \newblock Wine Quality [Dataset].

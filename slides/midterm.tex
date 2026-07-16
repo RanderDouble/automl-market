@@ -38,9 +38,9 @@
 \newcommand{\Th}{\Theta}
 
 \title{机器学习数据获取与数据定价}
-\subtitle{Optimal Pricing for Data-Augmented AutoML Marketplaces\\复现、问题与改进}
-\author{课程大作业 C.3｜中期展示}
-\date{2026年7月｜项目版本 v0.3.0}
+\subtitle{Optimal Pricing for Data-Augmented AutoML Marketplaces\\论文讲解与缩减复现}
+\author{课程大作业 C.3｜课程展示}
+\date{2026年7月｜项目版本 v0.4.0}
 
 \begin{document}
 
@@ -218,24 +218,25 @@ Theorem 5.2：若 $\mu,P$ 的估计误差至多 $\epsilon$，收入损失 CEE �
 \begin{itemize}
   \item 最优停止三维 DP 与策略执行
   \item Markov 性能轨迹模拟
-  \item 论文强制选择经验目标
-  \item 2401 条候选价格曲线精确搜索
-  \item Independent pricing 基线
-  \item 停止时间贝叶斯先验学习
+  \item 论文强制选择目标与 HiGHS MILP
+  \item 估值网格、Independent/Shift/Jiggle
+  \item 多先验、多学习率的停止时间学习
   \item Data-Bandit / All / Alt / AutoML
-  \item IR-aware 与 Robust IR 改进
-  \item 测试、图表、JSON/CSV、PDF 报告
+  \item RQ2 的 IS/OOS、多任务统计
+  \item IR/鲁棒实验作为补充记录
+  \item 14 项测试、CSV/JSON、中文讲解与报告
 \end{itemize}
 \end{exampleblock}
 \column{0.49\textwidth}
-\begin{block}{两组实验设置}
+\begin{block}{三组实验设置}
 \begin{itemize}
   \item RQ1：UCI Wine Quality 红/白数据
   \item 2 个基础特征 + 9 个外部表
   \item 分类/回归各 30 个重复任务
   \item 6 个模型，预算 60 次训练
-  \item RQ2/3：$|\mathcal Q|=4,|\Theta|=6,T=6$
-  \item 240 条训练、4000 条测试轨迹
+  \item RQ2：10 个任务，4 个质量、6 个类型
+  \item 100 条 IS、4000 条 OOS 轨迹
+  \item RQ3：5 种先验、3 种学习率、5 个种子
   \item 固定种子：20260716
 \end{itemize}
 \end{block}
@@ -264,22 +265,35 @@ Data-All 的 60 次预算末端效用仍最高；Data-Bandit 只落后 0.0012--0
 \end{columns}
 \end{frame}
 
-\begin{frame}{复现结果：定价与先验学习}
+\begin{frame}{RQ2：论文定价方法的 IS/OOS 复现}
+\centering
+\includegraphics[width=0.88\linewidth]{rq2_paper_reproduction.pdf}
+\vspace{-0.5em}
 \begin{columns}[T,onlytextwidth]
-\column{0.55\textwidth}
-\includegraphics[width=\linewidth]{pricing_comparison.pdf}
-\column{0.43\textwidth}
-\includegraphics[width=\linewidth]{prior_learning.pdf}
-\vspace{-0.4em}
-\begin{block}{观察}
-\small
-\begin{itemize}
-  \item IR-aware：IS 测试收入最高
-  \item Robust IR：OOS 收入最高
-  \item 先验学习 KL：$0.0311\to0.0069$
-  \item 停止时间有信息，但类型可识别性不是自动成立
-\end{itemize}
-\end{block}
+\column{0.49\textwidth}
+\begin{exampleblock}{论文强制购买指标}
+\small MILP 的 IS 归一化收入为 $0.7926\pm0.0098$；Shift 优于 Independent，Jiggle 继续改善 Shift。
+\end{exampleblock}
+\column{0.49\textwidth}
+\begin{alertblock}{自愿购买指标}
+\small 本缩减设置下 Independent 的 OOS 实现收入最高，说明强制支付最优不等于可实现收入最优。
+\end{alertblock}
+\end{columns}
+\end{frame}
+
+\begin{frame}{RQ3：停止时间先验学习}
+\centering
+\includegraphics[height=0.48\textheight,keepaspectratio]{rq3_paper_reproduction.pdf}
+\vspace{-0.5em}
+\begin{columns}[T,onlytextwidth]
+\column{0.49\textwidth}
+\begin{exampleblock}{复现到的现象}
+\small 大批量更平滑；激进学习率收敛更快；$1/\sqrt t$ 在速度和稳定性之间较均衡。
+\end{exampleblock}
+\column{0.49\textwidth}
+\begin{alertblock}{必要前提}
+\small 不同类型必须有可区分的停止分布。常数 $1/2$ 在批量 10 时振荡明显。
+\end{alertblock}
 \end{columns}
 \end{frame}
 
@@ -381,14 +395,15 @@ Robust IR 相比普通 IR：OOS $+15.1\%$，代价是 IS $-10.1\%$。
   \item 不是原文 Figure 3--5 的逐点复现
   \item 尚未复现 69K NYC 数据池
   \item RQ1 是公开数据上的缩减替代实验
-  \item RQ2/RQ3 仍缺多随机种子统计检验
-  \item 小网格实验不能替代 $|Q|=20$ 的 MILP
+  \item RQ2/RQ3 是透明合成设置，不是原图逐点复制
+  \item $|Q|=20$ 的开源 MILP 在时限内仍有大 gap
+  \item 估值网格不是一般连续多质量定价的精确解
 \end{itemize}
 \end{alertblock}
 \end{columns}
 \end{frame}
 
-\begin{frame}{后续计划与最终交付}
+\begin{frame}{当前重点与最终交付}
 \begin{tikzpicture}[
   milestone/.style={rounded corners,draw=mainblue,thick,fill=mainblue!6,
                     minimum height=1.1cm,text width=2.65cm,align=center},
@@ -398,8 +413,8 @@ Robust IR 相比普通 IR：OOS $+15.1\%$，代价是 IS $-10.1\%$。
 ]
 \node[done] (m1) {v0.1--0.2\\机制、改进、报告、展示};
 \node[done,right=of m1] (m2) {v0.3\\公开表格数据 + Exp3 / RQ1};
-\node[milestone,right=of m2] (m3) {v0.4\\MILP $|Q|=20$ + 多种子实验};
-\node[milestone,right=of m3] (m4) {v1.0\\最终报告、代码、复现说明};
+\node[done,right=of m2] (m3) {v0.4\\RQ2/RQ3 + 论文讲解};
+\node[milestone,right=of m3] (m4) {v1.0\\讲懂、复现、报告与代码};
 \draw[arrow] (m1)--(m2);
 \draw[arrow] (m2)--(m3);
 \draw[arrow] (m3)--(m4);
@@ -407,10 +422,10 @@ Robust IR 相比普通 IR：OOS $+15.1\%$，代价是 IS $-10.1\%$。
 
 \vspace{1.2em}
 \begin{enumerate}
-  \item 接入 Gurobi/SCIP，在论文规模上求解原 MILP 与 IR-MILP；
-  \item 运行 20--50 个随机种子，加入均值、标准差和显著性分析；
-  \item 对先验偏移、发现成本和 $P$ 的估计误差做消融；
-  \item 整合成最终 PDF、实验代码、环境与一键复现说明。
+  \item 先把模型、算法、定理证明直觉和代码对应讲清楚；
+  \item 固化 RQ1/RQ2/RQ3 的运行入口、原始表格和复现边界；
+  \item 已有 MILP/IR 发现只做准确记录，暂缓大规模优化探索；
+  \item 整合最终 PDF、展示、代码、Conda 环境与一键复现说明。
 \end{enumerate}
 \end{frame}
 
@@ -418,13 +433,13 @@ Robust IR 相比普通 IR：OOS $+15.1\%$，代价是 IS $-10.1\%$。
 \begin{block}{论文贡献}
 把数据增强、模型发现、最优停止和价格曲线统一到一个 AutoML 市场机制中。
 \end{block}
-\begin{exampleblock}{我们的阶段贡献}
+\begin{exampleblock}{我们的复现工作}
 \begin{enumerate}
   \item 实现并验证论文的停止 DP、经验定价与先验学习；
-  \item 在公开数据上缩减复现 Data-Bandit RQ1；
-  \item 发现“自愿购买 vs. 强制选择”的建模缺口；
-  \item 给出 IR 外部选项与鲁棒定价修正；
-  \item 建立可复现、可测试、可版本化的代码与报告工程。
+  \item 在公开数据上复现 RQ1，并完成多任务 RQ2、多设置 RQ3；
+  \item 解释并实现 DP、MILP、先验学习和 Data-Bandit；
+  \item 记录“自愿购买 vs. 强制选择”及有限价格上界边界；
+  \item 建立 Conda、测试、原始结果、中文讲解和 PDF 工程。
 \end{enumerate}
 \end{exampleblock}
 \vfill
@@ -435,12 +450,13 @@ Robust IR 相比普通 IR：OOS $+15.1\%$，代价是 IS $-10.1\%$。
 \begin{itemize}
   \item 一键运行：\texttt{make all}
   \item 单元测试：\texttt{make test}
-  \item 原始结果：\texttt{results/summary.json}
+  \item 论文讲解：\texttt{docs/paper\_walkthrough.md}
+  \item 原始结果：\texttt{results/paper\_experiments\_summary.json}
   \item RQ1 结果：\texttt{results/rq1\_summary.json}
-  \item 表格结果：\texttt{results/tables/pricing\_results.csv}
-  \item 阶段报告：\texttt{report/main.pdf}
-  \item 中期展示：\texttt{slides/midterm.pdf}
-  \item 当前版本：\texttt{v0.3.0}
+  \item 表格结果：\texttt{results/tables/rq2\_paper\_summary.csv}
+  \item 复现报告：\texttt{report/main.pdf}
+  \item 课程展示：\texttt{slides/midterm.pdf}
+  \item 当前版本：\texttt{v0.4.0}
 \end{itemize}
 \vspace{0.8em}
 \small

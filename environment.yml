@@ -1,0 +1,8 @@
+name: automl-market
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - numpy>=2.0
+  - matplotlib>=3.8
+  - highspy>=1.12

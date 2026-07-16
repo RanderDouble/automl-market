@@ -11,7 +11,7 @@ def smoothed_bayesian_learning(
     rounds: int,
     batch_size: int,
     rng: np.random.Generator,
-    learning_rate: str = "sqrt",
+    learning_rate: str | float = "sqrt",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Run Algorithm 1's posterior smoothing with categorical observations.
 
@@ -25,6 +25,10 @@ def smoothed_bayesian_learning(
         raise ValueError("likelihood and prior shapes disagree")
     if not np.allclose(likelihoods.sum(axis=1), 1.0):
         raise ValueError("each likelihood row must sum to one")
+    if isinstance(learning_rate, str) and learning_rate not in {"sqrt", "harmonic"}:
+        raise ValueError("learning_rate must be 'sqrt', 'harmonic', or a number in (0, 1]")
+    if not isinstance(learning_rate, str) and not 0 < float(learning_rate) <= 1:
+        raise ValueError("constant learning rate must lie in (0, 1]")
 
     belief = np.full_like(true_prior, 1.0 / len(true_prior))
     history = [belief.copy()]
@@ -41,7 +45,12 @@ def smoothed_bayesian_learning(
                 posterior = unnormalized / unnormalized.sum()
             posteriors.append(posterior)
         batch_posterior = np.mean(posteriors, axis=0)
-        eta = 1.0 / np.sqrt(t + 1) if learning_rate == "sqrt" else 1.0 / (t + 1)
+        if learning_rate == "sqrt":
+            eta = 1.0 / np.sqrt(t + 1)
+        elif learning_rate == "harmonic":
+            eta = 1.0 / (t + 1)
+        else:
+            eta = float(learning_rate)
         belief = (1.0 - eta) * belief + eta * batch_posterior
         belief /= belief.sum()
         history.append(belief.copy())
@@ -52,4 +61,3 @@ def smoothed_bayesian_learning(
 def _kl(p: np.ndarray, q: np.ndarray) -> float:
     mask = p > 0
     return float(np.sum(p[mask] * np.log(p[mask] / np.maximum(q[mask], 1e-15))))
-

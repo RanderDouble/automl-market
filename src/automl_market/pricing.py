@@ -1,4 +1,4 @@
-"""Empirical price-curve objectives and small-instance exact grid solvers."""
+"""Empirical price-curve objectives and transparent valuation-grid solvers."""
 
 from __future__ import annotations
 
@@ -75,7 +75,12 @@ def expected_revenue(
 
 
 def candidate_price_grid(valuations: np.ndarray) -> list[np.ndarray]:
-    """Finite exact candidates: zero and each observed valuation per quality."""
+    """Return zero and each observed valuation as candidate prices per quality.
+
+    This is a transparent finite benchmark, not a generally exact discretization
+    for multi-quality pricing: cross-quality indifference hyperplanes can create
+    optimal prices that are not individual observed valuations.
+    """
     values = np.asarray(valuations, dtype=float)
     return [np.unique(np.r_[0.0, values[:, q]]) for q in range(values.shape[1])]
 
@@ -88,9 +93,9 @@ def optimize_price_grid(
     prior_scenarios: list[np.ndarray] | None = None,
     robust: bool = False,
 ) -> PricingResult:
-    """Exactly optimize the empirical objective on the valuation-induced grid.
+    """Optimize the empirical objective on the valuation-induced finite grid.
 
-    This solver is intended for transparent small-scale reproduction.  With
+    This solver is intended for transparent small-scale benchmarking.  With
     ``robust=True``, it maximizes the minimum revenue over ``prior_scenarios``.
     """
     values = np.asarray(valuations, dtype=float)
@@ -128,3 +133,132 @@ def independent_prices(valuations: np.ndarray, prior: np.ndarray) -> np.ndarray:
         revenues = [p * prior[values[:, q] >= p - 1e-12].sum() for p in candidates]
         prices[q] = candidates[int(np.argmax(revenues))]
     return prices
+
+
+def optimize_shift_prices(
+    valuations: np.ndarray,
+    prior: np.ndarray,
+    trajectories: np.ndarray,
+    force_purchase: bool = True,
+) -> PricingResult:
+    """Appendix D.1 Shift pricing with one common valuation-rank offset."""
+    values = np.asarray(valuations, dtype=float)
+    base = independent_prices(values, prior)
+    levels = [np.unique(values[:, q]) for q in range(values.shape[1])]
+    base_ranks = np.asarray(
+        [int(np.flatnonzero(np.isclose(levels[q], base[q]))[0]) for q in range(values.shape[1])]
+    )
+    best_prices = base.copy()
+    best_by_type = revenue_by_type(base, values, trajectories, force_purchase)
+    best_objective = float(np.asarray(prior) @ best_by_type)
+    evaluated = 0
+    for shift in range(-values.shape[0], values.shape[0] + 1):
+        ranks = [int(np.clip(base_ranks[q] + shift, 0, len(levels[q]) - 1)) for q in range(values.shape[1])]
+        prices = np.asarray([levels[q][ranks[q]] for q in range(values.shape[1])])
+        by_type = revenue_by_type(prices, values, trajectories, force_purchase)
+        objective = float(np.asarray(prior) @ by_type)
+        evaluated += 1
+        if objective > best_objective + 1e-12:
+            best_prices = prices
+            best_by_type = by_type
+            best_objective = objective
+    return PricingResult(best_prices, best_objective, best_by_type, evaluated)
+
+
+def optimize_jiggle_prices(
+    valuations: np.ndarray,
+    prior: np.ndarray,
+    trajectories: np.ndarray,
+    force_purchase: bool = True,
+    max_modifications: int | None = None,
+) -> PricingResult:
+    """Appendix D.1 Jiggle heuristic initialized at the best Shift curve.
+
+    Each iteration tests the paper's two moves: raise the most frequently
+    selected quality by one valuation rank, or lower the least frequently
+    selected quality by one rank.  Only strictly improving moves are accepted.
+    """
+    values = np.asarray(valuations, dtype=float)
+    weights = np.asarray(prior, dtype=float)
+    shifted = optimize_shift_prices(values, weights, trajectories, force_purchase)
+    levels = [np.unique(values[:, q]) for q in range(values.shape[1])]
+    ranks = np.asarray(
+        [
+            int(np.flatnonzero(np.isclose(levels[q], shifted.prices[q]))[0])
+            for q in range(values.shape[1])
+        ],
+        dtype=int,
+    )
+    limit = values.shape[0] * values.shape[1] if max_modifications is None else max_modifications
+    if limit < 0:
+        raise ValueError("max_modifications must be nonnegative")
+
+    prices = shifted.prices.copy()
+    by_type = shifted.revenue_by_type.copy()
+    objective = shifted.objective
+    evaluated = shifted.evaluated_curves
+    for _ in range(limit):
+        shares = _choice_probabilities(prices, values, weights, trajectories, force_purchase)
+        candidates: list[tuple[np.ndarray, np.ndarray]] = []
+        can_raise = np.flatnonzero(ranks < np.asarray([len(level) - 1 for level in levels]))
+        if len(can_raise):
+            quality = int(can_raise[np.argmax(shares[can_raise])])
+            candidate_ranks = ranks.copy()
+            candidate_ranks[quality] += 1
+            candidates.append((candidate_ranks, _prices_from_ranks(levels, candidate_ranks)))
+        can_lower = np.flatnonzero(ranks > 0)
+        if len(can_lower):
+            quality = int(can_lower[np.argmin(shares[can_lower])])
+            candidate_ranks = ranks.copy()
+            candidate_ranks[quality] -= 1
+            candidates.append((candidate_ranks, _prices_from_ranks(levels, candidate_ranks)))
+
+        best_move: tuple[np.ndarray, np.ndarray, np.ndarray, float] | None = None
+        for candidate_ranks, candidate_prices in candidates:
+            candidate_by_type = revenue_by_type(
+                candidate_prices, values, trajectories, force_purchase
+            )
+            candidate_objective = float(weights @ candidate_by_type)
+            evaluated += 1
+            if candidate_objective > objective + 1e-12 and (
+                best_move is None or candidate_objective > best_move[3] + 1e-12
+            ):
+                best_move = (
+                    candidate_ranks,
+                    candidate_prices,
+                    candidate_by_type,
+                    candidate_objective,
+                )
+        if best_move is None:
+            break
+        ranks, prices, by_type, objective = best_move
+    return PricingResult(prices, objective, by_type, evaluated)
+
+
+def _prices_from_ranks(levels: list[np.ndarray], ranks: np.ndarray) -> np.ndarray:
+    return np.asarray([levels[q][int(ranks[q])] for q in range(len(levels))])
+
+
+def _choice_probabilities(
+    prices: np.ndarray,
+    valuations: np.ndarray,
+    prior: np.ndarray,
+    trajectories: np.ndarray,
+    force_purchase: bool,
+) -> np.ndarray:
+    paths = np.asarray(trajectories, dtype=np.int64)
+    masks = np.bitwise_or.reduce(1 << paths, axis=1)
+    unique_masks, counts = np.unique(masks, return_counts=True)
+    shares = np.zeros(len(prices), dtype=float)
+    for type_id, type_values in enumerate(valuations):
+        net = type_values - prices
+        for mask, count in zip(unique_masks, counts):
+            available = np.flatnonzero(mask & (1 << np.arange(len(prices))))
+            available_net = net[available]
+            best_utility = available_net.max()
+            if not force_purchase and best_utility < -1e-12:
+                continue
+            tied = available[np.isclose(available_net, best_utility)]
+            selected = int(tied[np.argmax(prices[tied])])
+            shares[selected] += prior[type_id] * count / len(paths)
+    return shares
