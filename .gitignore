@@ -10,3 +10,14 @@ report/*.out
 report/*.synctex.gz
 report/*.toc
 report/*.xdv
+slides/*.aux
+slides/*.fdb_latexmk
+slides/*.fls
+slides/*.log
+slides/*.nav
+slides/*.out
+slides/*.snm
+slides/*.synctex.gz
+slides/*.toc
+slides/*.vrb
+slides/*.xdv

@@ -22,12 +22,20 @@ make all
 - `results/summary.json`：全部可复现实验参数和指标；
 - `results/tables/pricing_results.csv`：定价实验原始表格；
 - `results/figures/*.png|pdf`：报告图；
-- `report/main.pdf`：阶段性实验报告。
+- `report/main.pdf`：阶段性实验报告；
+- `slides/midterm.pdf`：16 页中期展示；
+- `slides/speaker_notes.md`：12--15 分钟逐页讲稿。
 
 随机种子固定为 `20260716`。测试可单独运行：
 
 ```bash
 make test
+```
+
+也可以单独生成中期展示：
+
+```bash
+make slides
 ```
 
 ## 复现边界
@@ -36,4 +44,3 @@ make test
 系统；这些数据与原作者实现没有随论文公开。因此当前工程首先复现理论机制和可验证的
 RQ2/RQ3 合成实验，明确不把它冒充为论文 Figure 3--5 的逐点重现。后续版本将补充公开
 表格数据上的 augmentation-model bandit 实验和更大规模 MILP 求解器接口。
-

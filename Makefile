@@ -1,6 +1,7 @@
 PYTHON ?= python
+export SOURCE_DATE_EPOCH := 1784131200
 
-.PHONY: test experiment report all clean
+.PHONY: test experiment report slides all clean
 
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
@@ -11,8 +12,11 @@ experiment:
 report: experiment
 	cd report && latexmk -xelatex -interaction=nonstopmode -halt-on-error main.tex
 
-all: test report
+slides: experiment
+	cd slides && latexmk -xelatex -interaction=nonstopmode -halt-on-error midterm.tex
+
+all: test report slides
 
 clean:
 	cd report && latexmk -C main.tex
-
+	cd slides && latexmk -C midterm.tex
