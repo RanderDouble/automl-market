@@ -1,0 +1,67 @@
+{
+  "seed": 20260716,
+  "quality_states": 4,
+  "buyer_types": 6,
+  "horizon": 6,
+  "train_trajectories": 240,
+  "test_trajectories": 4000,
+  "grid_curves": 2401,
+  "pricing": [
+    {
+      "scheme": "Paper forced-choice",
+      "prices": "0.220 0.390 0.700 1.020",
+      "forced_train_objective": 0.4880866666666666,
+      "realized_train_revenue": 0.26865416666666664,
+      "realized_is_revenue": 0.27486825000000004,
+      "realized_oos_revenue": 0.1105903,
+      "ir_violation_type_mass": 0.8
+    },
+    {
+      "scheme": "Independent",
+      "prices": "0.120 0.250 0.400 0.720",
+      "forced_train_objective": 0.3360883333333334,
+      "realized_train_revenue": 0.32447583333333335,
+      "realized_is_revenue": 0.327978875,
+      "realized_oos_revenue": 0.21689345,
+      "ir_violation_type_mass": 0.5800000000000001
+    },
+    {
+      "scheme": "IR-aware (ours)",
+      "prices": "0.150 0.300 0.520 0.720",
+      "forced_train_objective": 0.41613750000000005,
+      "realized_train_revenue": 0.3661375,
+      "realized_is_revenue": 0.3745908,
+      "realized_oos_revenue": 0.243648575,
+      "ir_violation_type_mass": 0.8
+    },
+    {
+      "scheme": "Robust IR (ours)",
+      "prices": "0.200 0.250 0.310 0.500",
+      "forced_train_objective": 0.34259500000000004,
+      "realized_train_revenue": 0.33266166666666674,
+      "realized_is_revenue": 0.33671657499999996,
+      "realized_oos_revenue": 0.28047105,
+      "ir_violation_type_mass": 0.8
+    }
+  ],
+  "learning": {
+    "initial_kl": 0.031142549342087395,
+    "final_kl": 0.006864910744724839,
+    "true_prior": [
+      0.1,
+      0.14,
+      0.19,
+      0.22,
+      0.2,
+      0.15
+    ],
+    "learned_prior": [
+      0.09463070897519978,
+      0.14556307084424044,
+      0.1892602872534348,
+      0.19089383052805745,
+      0.190914017957068,
+      0.18873808444199955
+    ]
+  }
+}
