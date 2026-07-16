@@ -31,7 +31,7 @@
 \title{机器学习数据获取与数据定价\\
 \large 《Optimal Pricing for Data-Augmented AutoML Marketplaces》讲解与实验复现}
 \author{课程大作业 C.3}
-\date{2026年7月16日\quad 版本 0.4.0}
+\date{2026年7月16日\quad 版本 0.4.1}
 
 \begin{document}
 \maketitle
@@ -257,6 +257,33 @@ $1/2$ & $0.00519\pm0.00166$ & 0.00353\\
 \end{figure}
 
 对 $|\mathcal Q|=20,|\Theta|=20,m=100$ 的探索性 HiGHS 模型，重复轨迹压缩后仍有 4220/4580 个变量和 9960/10320 个约束。60 秒运行的强制/IR 模型最优性间隙分别约 57.6\%/568\%。因此本文不宣称完成论文规模的最优 MILP，只把它记录为开源求解器和当前建模的透明边界，并按课程重点停止进一步性能调优。
+
+\section{复现实验协议与运行证据}
+
+完整复现使用 \texttt{environment.yml} 中的 Conda 环境。当前机器也可直接执行：
+\begin{lstlisting}[language=bash]
+make all PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
+\end{lstlisting}
+该目标依次运行 14 项测试、补充定价实验、RQ1、RQ2/RQ3，并重新编译报告与展示。最近一次完整运行的关键终端结果为：14 项测试全部通过；RQ1 完成 60 个重复任务；RQ2 完成 10 个随机任务；RQ3 完成 5 个种子的全部组合；XeLaTeX 成功生成本文和 18 页展示。所有图均由同一命令生成，而不是手工录入。
+
+\begin{table}[H]
+\centering
+\caption{论文实验与本项目可核验输出的一一对应。}
+\small
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+实验 & 默认规模 & 核验重点\\
+\midrule
+RQ1 & 60 个任务、6 个模型、60 次训练预算 & 逐任务效用、AUC、95\% oracle 增益训练数和配对区间\\
+RQ2 & 10 个任务、100 条 IS、4000 条 OOS 轨迹 & 五种方法的强制/实现收入及 IS/OOS 差异\\
+RQ3 & 5 个先验、3 个学习率、2 个批量、5 个种子、1000 轮 & 最终 KL、尾部均值和尾部波动\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+三组实验的逐任务数据、汇总统计和报告图统一保存在工程的 \texttt{results} 目录；具体文件名和字段解释见复现实验手册。
+
+为了区分“代码能跑”和“统计结果稳定”，项目还给出缩小重复次数的教学命令。教学版本适合逐步跟踪算法，但不得用其少量样本数字替代上述默认实验。每个指标的定义、快速命令和异常排查见 \path{docs/reproduction_guide.md}。
 
 \section{测试、可复现性与限制}
 

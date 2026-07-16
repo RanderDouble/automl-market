@@ -2,7 +2,7 @@
 
 课程大作业 C.3 的中文讲解、实验复现和报告工程。当前工作重点是忠实解释论文并复现 RQ1/RQ2/RQ3；已有的机制修正和 MILP 求解边界作为补充实验记录，不继续做大规模调参探索。
 
-建议先阅读 [`docs/paper_walkthrough.md`](docs/paper_walkthrough.md)。它按“市场流程 → 最优停止 → MILP 定价 → 先验学习 → Data-Bandit → 三个研究问题”的顺序讲解论文，并标出公式、代码和结果之间的对应关系。
+建议先阅读 [`docs/paper_walkthrough.md`](docs/paper_walkthrough.md)。它按“市场流程 → 最优停止 → MILP 定价 → 先验学习 → Data-Bandit → 三个研究问题”的顺序讲解论文，并标出公式、代码和结果之间的对应关系。准备实际运行时，再按 [`docs/reproduction_guide.md`](docs/reproduction_guide.md) 逐项核对实验协议、命令、指标和输出文件。
 
 ## 已实现内容
 
@@ -56,6 +56,17 @@ make all PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
 - `make all`：测试、报告和展示。
 
 随机种子固定，XeLaTeX 构建使用固定 `SOURCE_DATE_EPOCH`。
+
+第一次理解代码时，可以先运行缩小次数的教学版本；它只验证端到端数据流，不替代报告中的完整统计：
+
+```bash
+MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
+  python scripts/run_rq1.py --output /tmp/automl-market-demo \
+  --repeats-per-color 1 --budget 12
+MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
+  python scripts/run_paper_experiments.py --output /tmp/automl-market-demo \
+  --rq2-repeats 2 --rq3-seeds 1 --rq3-rounds 100
+```
 
 ## 主要输出
 
