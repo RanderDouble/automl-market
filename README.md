@@ -3,6 +3,7 @@
 课程大作业的可复现实验与报告工程。当前版本覆盖：
 
 - 论文 Proposition 4.1 / Algorithm 3 的买方最优停止动态规划；
+- 公开 UCI Wine Quality 数据上 Algorithm 2 / RQ1 的缩减复现，包含 Data-Bandit、Data-All、Data-Alt 与 AutoML；
 - 论文式 (7)/(8) 的经验价格曲线目标的小规模精确网格复现；
 - Appendix D.1 的 independent pricing 基线；
 - 论文 RQ3 的“由停止时间学习买家类型先验”实验；
@@ -20,10 +21,12 @@ make all
 主要输出：
 
 - `results/summary.json`：全部可复现实验参数和指标；
+- `results/rq1_summary.json`：RQ1 端点、发现曲线 AUC、训练样本效率和配对 bootstrap 区间；
+- `results/tables/rq1_*.csv`：RQ1 逐任务结果、汇总与配对比较；
 - `results/tables/pricing_results.csv`：定价实验原始表格；
 - `results/figures/*.png|pdf`：报告图；
 - `report/main.pdf`：阶段性实验报告；
-- `slides/midterm.pdf`：16 页中期展示；
+- `slides/midterm.pdf`：17 页中期展示；
 - `slides/speaker_notes.md`：12--15 分钟逐页讲稿。
 
 随机种子固定为 `20260716`。测试可单独运行：
@@ -38,9 +41,19 @@ make test
 make slides
 ```
 
+RQ1 可单独运行：
+
+```bash
+make rq1
+```
+
+该实验从 `data/raw/wine-quality.zip` 直接读取 UCI Wine Quality 红、白数据；归档文件的来源、
+许可、SHA-256 和增强表构造方法见 `data/README.md`。
+
 ## 复现边界
 
 论文的大规模发现实验使用 69K NYC Open Data 数据集池、Metam/Exp3 与多种 AutoML
-系统；这些数据与原作者实现没有随论文公开。因此当前工程首先复现理论机制和可验证的
-RQ2/RQ3 合成实验，明确不把它冒充为论文 Figure 3--5 的逐点重现。后续版本将补充公开
-表格数据上的 augmentation-model bandit 实验和更大规模 MILP 求解器接口。
+系统；这些数据与原作者实现没有随论文公开。当前 RQ1 使用公开 UCI 数据、透明的训练集
+相关性候选排序和六个自包含模型族，复现的是查询预算与样本效率的定性结论，不能视为
+原文 Figure 3 的逐点重现。RQ2/RQ3 仍是机制级合成实验，也不冒充 Figure 4--5 的逐点重现。
+后续版本将补充更大规模 MILP、RQ2/RQ3 多种子统计和转移矩阵误差消融。

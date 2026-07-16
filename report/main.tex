@@ -32,13 +32,13 @@
 \title{机器学习数据获取与数据定价\\
 \large 《Optimal Pricing for Data-Augmented AutoML Marketplaces》复现与改进阶段报告}
 \author{课程大作业 C.3}
-\date{2026年7月16日\quad 版本 0.2.0}
+\date{2026年7月16日\quad 版本 0.3.0}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-本文复现 Han 等人提出的数据增强型 AutoML 市场的核心机制：平台将买家数据与外部数据连接，联合搜索增强数据和模型，并按模型性能定价。理论部分实现了买家的马尔可夫最优停止动态规划、样本轨迹上的价格曲线优化以及基于停止时间的买家先验学习。我们进一步指出，论文的经验定价程序式 (7)/(8) 与正文的“自愿购买”叙述存在不一致：程序强制每个买家从已发现模型中选择一个，即使所有模型的净效用均为负。为此，我们加入不购买外部选项，得到满足个体理性（IR）的价格优化，并扩展为在多个候选买家先验上最大化最坏收入的鲁棒 IR 定价。固定随机种子的合成实验显示，论文式目标预测收入为 0.488，但真实允许退出后同分布测试收入仅为 0.275；IR 定价将其提高到 0.375（$+36.3\%$）。不利先验偏移下，鲁棒 IR 收入为 0.280，相比论文式价格提高 $153.6\%$，相比普通 IR 再提高 $15.1\%$。先验学习实验的 KL 散度由 0.0311 降至 0.0069。本文同时说明复现边界：当前结果验证的是机制与改进，而不是对原文 69K 数据集池实验的逐点重现。
+本文复现 Han 等人提出的数据增强型 AutoML 市场的核心机制：平台将买家数据与外部数据连接，联合搜索增强数据和模型，并按模型性能定价。理论部分实现了买家的马尔可夫最优停止动态规划、样本轨迹上的价格曲线优化、基于停止时间的买家先验学习，以及 Algorithm 2 的增强--模型老虎机发现过程。公开数据 RQ1 缩减复现基于 UCI Wine Quality 的红、白葡萄酒数据构造 60 个重复任务；在 60 次模型训练预算下，Data-Bandit 的最终效用与穷举 Data-All 相差仅 0.0012--0.0015，但达到 95\% oracle 增益所需训练数减少 27.5\%--30.3\%，且归一化发现曲线面积的配对优势在分类和回归上均不跨越 0。我们进一步指出，论文的经验定价程序式 (7)/(8) 与正文的“自愿购买”叙述存在不一致：程序强制每个买家从已发现模型中选择一个，即使所有模型的净效用均为负。加入不购买外部选项后，IR 定价把同分布测试收入从 0.275 提高到 0.375；不利先验偏移下，鲁棒 IR 收入为 0.280，相比普通 IR 提高 15.1\%。先验学习实验的 KL 散度由 0.0311 降至 0.0069。本文明确区分公开数据上的定性复现与原文不可获得的 69K NYC 数据池 Figure 3 逐点重现。
 \end{abstract}
 
 \tableofcontents
@@ -53,6 +53,7 @@
 本文阶段工作的目标如下：
 \begin{enumerate}[label=(\arabic*)]
   \item 理解并实现论文的马尔可夫最优停止、经验价格曲线和先验学习；
+  \item 在公开表格数据上缩减复现 RQ1 的 augmentation--model discovery；
   \item 复现论文 RQ2/RQ3 所研究的定价与学习现象；
   \item 找出机制中的可操作问题，给出理论修正并通过实验比较；
   \item 建立可重复运行、可测试、可生成 PDF、可版本化管理的项目工程。
@@ -128,15 +129,16 @@ w^{(t)}(\theta_i)=
 
 \subsection{数据增强--模型发现}
 
-暴力枚举增强集合和模型需要 $O(2^{|\mathcal P|}|\mathcal M|)$ 次训练。论文 Algorithm 2 在 Metam 数据发现框架上加入 Exp3 对抗多臂老虎机：每个模型视为一只臂，每轮只训练一个模型；增强候选通过相似性聚类及 Thompson/贪心策略选择。这一部分支撑原文 RQ1。由于论文使用的 69K NYC 数据集池及完整市场实现未公开，本阶段没有把较小的替代实验宣称为 Figure 3 的逐点复现。
+暴力枚举增强集合和模型需要 $O(2^{|\mathcal P|}|\mathcal M|)$ 次训练。论文 Algorithm 2 在 Metam 数据发现框架上加入 Exp3 对抗多臂老虎机：每个模型视为一只臂，每轮只训练一个模型；增强候选通过相似性聚类及 Thompson/贪心策略选择。本文保留其关键预算语义，实现 Data-Bandit、Data-All、Data-Alt 与不使用外部数据的 AutoML 四种方法。由于论文的 69K NYC 数据集池、Metam 配置和完整市场实现未公开，本文采用公开数据构造透明的小规模连接任务，并把结论限定为算法行为和样本效率的定性复现，而非 Figure 3 的逐点重现。
 
 \section{实现设计与可复现性}
 
-代码分为四个核心模块：
+代码分为五个核心模块：
 \begin{itemize}
   \item \texttt{market.py}：马尔可夫轨迹采样、三维停止 DP、策略执行；
   \item \texttt{pricing.py}：式~\eqref{eq:forced}、IR 收入、价格候选网格与 independent baseline；
   \item \texttt{learning.py}：停止时间似然下的平滑贝叶斯更新；
+  \item \texttt{discovery.py}：公开表格数据加载、模型族评分表及四种 RQ1 发现策略；
   \item \texttt{experiments.py}：固定种子数据生成、训练/测试/OOS 评估和作图。
 \end{itemize}
 
@@ -144,8 +146,10 @@ w^{(t)}(\theta_i)=
 \begin{lstlisting}
 make all
 \end{lstlisting}
-原始数值同时保存为 \texttt{results/summary.json} 与
-\texttt{results/tables/pricing\_results.csv}，避免只能从图中读取结果。
+原始数值同时保存为 \texttt{results/summary.json}、\texttt{results/rq1\_summary.json}
+及 \texttt{results/tables/} 下的逐任务 CSV，避免只能从图中读取结果。RQ1 使用 30 个分类和
+30 个回归重复任务；每个任务的验证集只用于选择模型，测试集只用于报告当前验证集 incumbent，
+配对 bootstrap 使用固定种子和 10000 次重采样。
 
 \section{机制问题与改进方案}
 
@@ -184,6 +188,41 @@ q^*_{\mathrm{IR}}\in\arg\max_{q\in s\cup\{\bot\}}
 该 max--min 目标牺牲部分同分布平均收入，换取先验变化时的收入下界。小规模实验仍可精确枚举；大规模版本可在原 MILP 上增加场景收入变量 $r$，并对每个 $\mu\in\mathcal U$ 加入 $r\le\mathrm{Rev}_{\mu}(x)$。
 
 \section{实验结果与分析}
+
+\subsection{RQ1：公开数据上的增强--模型发现}
+
+实验采用 UCI Wine Quality 红、白葡萄酒数据~\cite{uci186}。每次划分中，前两个理化指标构成买家的基础表，其余九个指标分别视为可按不可变行键连接的外部表；候选增强按训练集上的目标相关系数排序，作为 Metam profile/likelihood 的透明小规模替代。分类任务为判断质量是否至少为 6，回归任务直接预测质量；每种颜色重复 15 次，共得到每类问题 30 个配对任务。模型池包含四个不同岭惩罚的线性模型、二次特征模型和随机 ReLU 特征模型，统一预算为 60 次训练。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{rq1_discovery.pdf}
+\caption{公开数据 RQ1 缩减复现。曲线为训练预算不超过横轴数值时可达到的测试效用均值及 95\% 置信带；方法结束后用其最终效用向右延伸。右图统计达到“基础效用到完整验证 oracle 增益的 95\%”所需训练次数，61 表示预算内未达到。}
+\label{fig:rq1}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{最多 60 次训练预算下的 RQ1 结果。AUC 是预算 $1,\ldots,60$ 下验证集 incumbent 测试效用的均值，方法提前结束后沿用其最终效用；括号内为标准误。}
+\small
+\begin{tabular}{llrrr}
+\toprule
+任务 & 方法 & 最终效用 & 归一化 AUC & 达到 95\% 增益的训练数\\
+\midrule
+分类 & Data-Bandit & 0.7393 (0.0045) & \textbf{0.7381} & \textbf{11.93}\\
+     & Data-All    & \textbf{0.7408} (0.0039) & 0.7301 & 17.13\\
+     & Data-Alt    & 0.7360 (0.0049) & 0.7342 & 15.97\\
+     & AutoML      & 0.6619 (0.0052) & 0.6622 & 59.00\\
+\midrule
+回归 & Data-Bandit & 0.5459 (0.0026) & \textbf{0.5449} & \textbf{18.43}\\
+     & Data-All    & \textbf{0.5471} (0.0025) & 0.5416 & 25.43\\
+     & Data-Alt    & 0.5459 (0.0026) & 0.5441 & 20.47\\
+     & AutoML      & 0.5126 (0.0018) & 0.5126 & 61.00\\
+\bottomrule
+\end{tabular}
+\label{tab:rq1}
+\end{table}
+
+Data-All 在完整预算末端取得最高效用，这是穷举所有增强--模型组合的预期结果；Data-Bandit 的最终差距仅为分类 0.00153、回归 0.00124。更重要的是，Data-Bandit 达到 95\% oracle 增益的平均训练数相对 Data-All 分别减少 30.3\% 和 27.5\%，并在分类、回归的归一化 AUC 上分别领先 0.00794 和 0.00335。对同一数据划分做配对 bootstrap 后，95\% 区间分别为 $[0.00340,0.01220]$ 与 $[0.00185,0.00481]$，Data-Bandit 分别在 24/30 和 23/30 个任务上胜过 Data-All。相对 Data-Alt 的 AUC 均值虽为正，但区间跨越 0，因此证据只支持“与 Data-Alt 相当”，不能声称稳定优于它。AutoML 不搜索外部数据，在两类任务上均明显落后。由此，本实验支持论文 RQ1 的核心样本效率结论，但不支持把数值外推到原文 NYC 市场规模。
 
 \subsection{定价结果}
 
@@ -231,39 +270,45 @@ KL 散度从均匀初始化时的 0.0311 降至 0.0069，复现了论文 RQ3 的
 
 \begin{lstlisting}
 $ make test
-Ran 4 tests in 0.025s
+Ran 8 tests in 0.026s
 OK
+
+$ make rq1
+Completed RQ1 on 60 repeated tasks.
 
 $ make experiment
 Completed 4 pricing schemes.
 Results: results/summary.json
 \end{lstlisting}
 
-单元测试覆盖：马尔可夫采样可重复性、DP 的继续/停止判断、缺少外部选项产生不可实现收入，以及单质量情形下 IR 网格解与垄断价格的一致性。
+单元测试覆盖：马尔可夫采样可重复性、DP 的继续/停止判断、缺少外部选项产生不可实现收入、单质量情形下 IR 网格解与垄断价格的一致性、四种发现方法的预算约束、Data-All oracle 性质、相对增益训练数以及配对 bootstrap 的确定性。
 
 \section{局限性、后续计划与中期展示安排}
 
-当前阶段完成了机制级复现，但尚有三项重要边界。第一，论文的大规模 NYC 数据池和作者完整实现未公开，因此尚未复现 Data-Bandit 的 Figure 3；第二，当前精确网格只适用于小 $|\mathcal Q|$，最终版本应增加 Gurobi/SCIP 的 MILP 接口；第三，当前主要表格是单随机种子结果，最终报告需增加多种子置信区间。
+当前阶段已完成公开数据上的 RQ1 缩减复现，但仍有三项重要边界。第一，论文的大规模 NYC 数据池和作者完整实现未公开，因此不能把本实验视为 Data-Bandit Figure 3 的逐点重现；第二，当前精确价格网格只适用于小 $|\mathcal Q|$，最终版本应增加 Gurobi/SCIP 的 MILP 接口；第三，RQ1 已有重复划分和配对区间，但 RQ2/RQ3 定价与先验学习结果仍主要来自单个固定随机种子。
 
 后续按以下顺序推进：
 \begin{enumerate}[label=(\arabic*)]
-  \item 在公开表格任务上实现简化的 augmentation--model Exp3，完成 RQ1；
   \item 在 $|\mathcal Q|=20,|\Theta|=20,m=100$ 的论文设置上运行 MILP；
   \item 对先验偏移强度、发现成本和转移矩阵估计误差做消融实验；
   \item 运行 20--50 个随机种子并报告均值、标准差和显著性；
-  \item 根据课堂反馈迭代已完成的 16 页中期展示与讲稿；
-  \item 将本报告扩写为最终报告，补齐 RQ1 截图、完整实验环境与附录证明。
+  \item 根据课堂反馈迭代已完成的 17 页中期展示与讲稿；
+  \item 将本报告扩写为最终报告，补齐完整实验环境、消融表格与附录证明。
 \end{enumerate}
 
 \section{结论}
 
-本文建立了一个可运行、可测试和可版本化的复现工程，实现了论文的最优停止、经验定价与先验学习核心。机制分析发现，论文经验程序缺少“不购买”选项，会把负效用买家的强制支付误记为收入。加入外部选项后，定价目标与正文的自愿购买语义一致，并在合成实验中显著提高可实现收入。进一步的鲁棒 IR 定价对买家先验偏移表现更稳定。当前证据支持该改进的理论正确性和实验有效性，但最终结论仍需通过多种子、大规模 MILP 和真实表格数据实验加强。
+本文建立了一个可运行、可测试和可版本化的复现工程，实现了论文的增强--模型发现、最优停止、经验定价与先验学习核心。公开数据实验表明，Data-Bandit 能以更小训练预算接近 Data-All 的最终效用；机制分析同时发现，论文经验程序缺少“不购买”选项，会把负效用买家的强制支付误记为收入。加入外部选项后，定价目标与正文的自愿购买语义一致，并在合成实验中显著提高可实现收入；鲁棒 IR 定价则对买家先验偏移更稳定。当前证据支持这些定性结论，但最终结论仍需通过 RQ2/RQ3 多种子实验、论文规模 MILP 和转移误差消融加强。
 
 \begin{thebibliography}{9}
 \bibitem{han2023}
 Y. Han, S. Padmanabha, S. Wang, Z. Huang, and J. Zhao.
 \newblock Optimal Pricing for Data-Augmented AutoML Marketplaces.
 \newblock arXiv preprint, 2023 (local manuscript revision used in this project).
+\bibitem{uci186}
+P. Cortez, A. Cerdeira, F. Almeida, T. Matos, and J. Reis.
+\newblock Wine Quality [Dataset].
+\newblock UCI Machine Learning Repository, DOI: 10.24432/C56S3T.
 \end{thebibliography}
 
 \end{document}
