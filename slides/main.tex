@@ -364,7 +364,7 @@ Data-Bandit、Data-All、Data-Alt 与 AutoML。
 \end{enumerate}
 \end{block}
 \begin{exampleblock}{训练预算}
-与其在一个增强上花 $|\mathcal M|$ 次训练测透，不如先花 1 次快速筛选，从而把预算用于更多增强。
+Data-All 在一个增强上训练全部 $|\mathcal M|$ 个模型；Data-Bandit 每轮只抽取并训练 1 个模型，用较低单轮成本把预算用于更多增强候选。
 \end{exampleblock}
 \column{0.40\textwidth}
 \begin{block}{比较方法}
