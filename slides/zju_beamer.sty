@@ -17,7 +17,7 @@
 % 1. 宏包导入与基础设置
 % ============================================================
 
-\ProvidesPackage{zju_beamer}
+\ProvidesPackage{zju_beamer}  
 
 % --- 字体与中文支持 ---
 \usefonttheme[onlymath]{serif}                % 数学公式使用衬线字体
@@ -115,7 +115,7 @@
 \setbeamercolor{frametitle right}{parent=section in head/foot}
 % 3. 渐变色定义
 \pgfdeclarehorizontalshading[frametitle.bg,frametitle right.bg]{beamer@frametitleshade}{\paperheight}{%
-  color(0pt)=(frametitle.bg);
+  color(0pt)=(frametitle.bg); 
   color(\paperwidth)=(frametitle right.bg)}
 % 4. 如需自定义顶部颜色，可用如下命令：
 %    \setbeamercolor{frametitle}{bg=red!80!black,fg=white}
@@ -189,7 +189,7 @@
 
 \lstset{
     language=Tex,                                 % 代码语言
-    backgroundcolor=\color{white},
+    backgroundcolor=\color{white}, 
     basicstyle=\ttfamily,                         % 字体族
     breaklines=true,                              % 自动换行
     keywordstyle=\bfseries\color{NavyBlue},       % 关键字样式
@@ -219,6 +219,6 @@
     \nocite{*}   % 列出 bib 文件中所有参考文献
     \bibliographystyle{unsrt} % 参考文献格式
     \begin{center}            % 居中显示
-        \bibliography{references} % 生成参考文献列表
+    	\bibliography{references} % 生成参考文献列表
     \end{center}
 }

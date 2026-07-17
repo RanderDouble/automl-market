@@ -93,10 +93,8 @@ conda run -n automl-market make all
 - `results/tables/rq3_paper_*.csv`：RQ3 多先验、学习率和批量结果；
 - `results/figures/rq*_*.pdf|png`：报告图；
 - `deliverables/final_report.pdf`：中文复现报告；
-- `deliverables/project_overview_slides.pdf`：完整项目展示；
+- `deliverables/project_slides.pdf`：统一项目展示，包含理论、RQ1、RQ3 与 RQ2；
 - `deliverables/rq1_rq3_handout.pdf`：RQ1/RQ3 详细讲义；
-- `deliverables/rq1_rq3_slides.pdf`：RQ1/RQ3 正式汇报；
-- `deliverables/zby_theory_slides.pdf`：ZBY 的论文理论部分。
 
 ## 项目结构
 
@@ -106,9 +104,9 @@ automl-market/
 ├── deliverables/           # 可直接查看或提交的最终 PDF
 ├── docs/                   # 论文讲解、复现指南、讲义源码
 ├── slides/
-│   ├── rq1_rq3/            # 本项目的 RQ1/RQ3 页面与讲稿
-│   ├── project_overview/   # 完整项目展示与讲稿
-│   └── zby/                # 仅保留 ZBY 的理论页、模板和素材
+│   ├── main.tex            # 统一项目汇报入口
+│   ├── figures/            # 统一幻灯片图片
+│   └── speaker_notes.md    # 统一逐页讲稿
 ├── src/                    # Python 实现
 ├── scripts/                # 实验入口
 ├── tests/                  # 单元测试
@@ -122,24 +120,21 @@ automl-market/
 负责 RQ1 与 RQ3 的同学可直接使用：
 
 - `deliverables/rq1_rq3_handout.pdf`：13 页详细中文讲义，覆盖研究问题、Algorithm 1/2、原论文实验、缩减复现、讲述稿和问答；
-- `deliverables/rq1_rq3_slides.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，共 17 页；前 14 页为标题、RQ1/RQ3 正式内容与结论，后 3 页为备查；
-- `slides/rq1_rq3/frames.tex`：可插入 ZBY 主文件的 frame 源码；
-- `slides/rq1_rq3/main.tex`：同风格独立编译入口；
-- `slides/rq1_rq3/speaker_notes.md`：约 7--8 分钟逐页讲稿。
+- `slides/main.tex`：统一项目汇报入口，理论部分和三个 RQ 已合并；
+- `slides/speaker_notes.md`：统一逐页讲稿，包含 Figure 3、Figure 5 和复现实验图的讲解。
 
-重新编译：
+重新编译统一 PPT：
 
 ```bash
 make rq-handout
-make rq-slides
-make rq1-slides rq3-slides
+make slides
 ```
 
-两条命令只在 `/tmp` 产生中间文件，并分别更新 `deliverables/rq1_rq3_handout.pdf` 和 `deliverables/rq1_rq3_slides.pdf`。
+两条命令只在 `/tmp` 产生中间文件，并分别更新 `deliverables/rq1_rq3_handout.pdf` 和 `deliverables/project_slides.pdf`。
 
 ## 当前核心结果
 
-RQ1 中，Data-Bandit 相比 Data-All 的归一化发现曲线 AUC 优势为：分类 `+0.00794`，95% bootstrap 区间 `[0.00340,0.01220]`；回归 `+0.00335`，区间 `[0.00185,0.00481]`。达到 95% oracle 增益所需训练数分别减少 30.3% 和 27.5%。完整预算终点仍是 Data-All 最好；Data-Bandit 与 Data-Alt 的区间跨 0，因此只报告表现相当。
+RQ1 中，Data-Bandit 在有限搜索预算的前期更快发现高质量增强—模型组合；完整预算终点仍由 Data-All 略高，Data-Bandit 与 Data-Alt 的表现只能报告为可比。AUC 和 oracle 训练次数保留在结果数据中，暂不作为主汇报指标。
 
 RQ2 中，论文强制购买指标下 IS MILP 捕获 `0.7926±0.0098` 的归一化福利；加入自愿购买后，本缩减设置的 OOS 实现收入由 Independent 取得最高均值 `0.5468±0.0119`。这个差异揭示了论文优化目标和真实购买行为之间的语义边界。
 
