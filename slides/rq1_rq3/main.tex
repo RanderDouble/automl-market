@@ -5,13 +5,15 @@
 \PassOptionsToPackage{fontset=fandol}{ctex}
 \documentclass[10pt,aspectratio=169]{beamer}
 
-\usepackage{zju_beamer}
+% Allow both VSCode direct compilation from the project root and compilation
+% from this directory by make/LaTeX Workshop.
+\IfFileExists{../zby/zju_beamer.sty}{\usepackage{../zby/zju_beamer}}{\usepackage{slides/zby/zju_beamer}}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{array}
 \usepackage{mathtools}
 
-\graphicspath{{./figures/}{../../results/figures/}{../../docs/assets/}}
+\graphicspath{{./figures/}{../../results/figures/}{../../docs/assets/}{results/figures/}{docs/assets/}}
 \zjusectioncolor{blue}
 \setbeamertemplate{navigation symbols}{}
 
@@ -49,5 +51,5 @@
     \def\showall{}
   \fi
 \fi
-\input{frames.tex}
+\IfFileExists{frames.tex}{\input{frames.tex}}{\input{slides/rq1_rq3/frames.tex}}
 \end{document}

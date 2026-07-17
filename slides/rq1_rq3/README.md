@@ -12,6 +12,8 @@
 make rq-slides
 ```
 
+也可以直接在 VSCode 中打开并编译 `main.tex`；它会自动兼容从项目根目录或本目录启动的 XeLaTeX。建议将输出目录设为临时目录，避免把 `.aux`、`.log` 等构建文件写入源码目录。
+
 中间文件写入 `/tmp/automl-market-latex/rq-slides`，最终文件为 `deliverables/rq1_rq3_slides.pdf`。
 
 若要并入 ZBY 的 `C3_Paper_Theory.tex`，其导言区图片路径应包含：
