@@ -412,7 +412,7 @@ Data-Bandit 在相同搜索时间下更快获得高质量增强--模型组合。
 \begin{itemize}
   \item UCI Wine Quality 数据，分类与回归各 30 个任务
   \item 2 个基础特征 + 9 个外部增强
-  \item 6 个自包含模型族
+  \item 6 个候选模型：4 个不同正则强度的线性 Ridge、1 个二次特征 Ridge、1 个随机 ReLU 特征 Ridge
   \item 每种方法最多 60 次模型训练
   \item 固定种子；每任务 60/20/20 划分
 \end{itemize}
