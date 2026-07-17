@@ -189,55 +189,23 @@ def _plot(
         "Data-Alt": "#c44e52",
         "AutoML": "#8172b3",
     }
-    fig, axes = plt.subplots(1, 3, figsize=(13.2, 3.8))
-    x = np.arange(1, budget + 1)
-    for axis, task in zip(axes[:2], ("classification", "regression")):
+    # The main RQ1 figure focuses on the informative early budget.  The
+    # supplementary oracle-efficiency panel is intentionally omitted.
+    display_budget = min(30, budget)
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.0), sharey=True)
+    x = np.arange(1, display_budget + 1)
+    for axis, task in zip(axes, ("classification", "regression")):
         for method, task_curves in curves[task].items():
             matrix = np.asarray(task_curves)
-            mean = matrix.mean(axis=0)
-            se = matrix.std(axis=0, ddof=1) / np.sqrt(len(matrix))
+            mean = matrix[:, :display_budget].mean(axis=0)
             axis.plot(x, mean, label=method, color=colors[method], linewidth=1.8)
-            axis.fill_between(x, mean - 1.96 * se, mean + 1.96 * se, color=colors[method], alpha=0.13)
         axis.set(
             xlabel="Model-training budget",
             ylabel="Test utility",
             title=task.capitalize(),
-            xlim=(1, budget),
+            xlim=(1, display_budget),
         )
         axis.grid(alpha=0.25)
-    methods = list(colors)
-    positions = np.arange(len(methods))
-    width = 0.36
-    for offset, task in ((-width / 2, "classification"), (width / 2, "regression")):
-        means = [np.mean(calls[task][m]) for m in methods]
-        ses = [np.std(calls[task][m], ddof=1) / np.sqrt(len(calls[task][m])) for m in methods]
-        axes[2].bar(
-            positions + offset,
-            means,
-            width,
-            yerr=np.asarray(ses) * 1.96,
-            capsize=2.5,
-            label=task.capitalize(),
-        )
-    axes[2].axhline(budget, color="gray", linestyle="--", linewidth=1)
-    axes[2].set(
-        ylabel="Trainings to 95% oracle gain",
-        title="Discovery sample efficiency",
-        xticks=positions,
-        xticklabels=methods,
-    )
-    axes[2].tick_params(axis="x", rotation=20)
-    axes[2].grid(axis="y", alpha=0.25)
-    axes[2].text(
-        0.99,
-        0.98,
-        f"{budget + 1} = not reached",
-        transform=axes[2].transAxes,
-        ha="right",
-        va="top",
-        fontsize=8,
-        color="dimgray",
-    )
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 1.04))
     fig.tight_layout()

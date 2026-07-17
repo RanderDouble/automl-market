@@ -134,7 +134,7 @@ make slides
 
 ## 当前核心结果
 
-RQ1 中，Data-Bandit 在有限搜索预算的前期更快发现高质量增强—模型组合；完整预算终点仍由 Data-All 略高，Data-Bandit 与 Data-Alt 的表现只能报告为可比。AUC 和 oracle 训练次数保留在结果数据中，暂不作为主汇报指标。
+RQ1 中，Data-Bandit 在前 30 次训练调用内更快发现高质量增强—模型组合；完整预算终点仍由 Data-All 略高，Data-Bandit 与 Data-Alt 的表现只能报告为可比。主图暂不加入 AUC、95% oracle 或置信区间阴影。
 
 RQ2 中，论文强制购买指标下 IS MILP 捕获 `0.7926±0.0098` 的归一化福利；加入自愿购买后，本缩减设置的 OOS 实现收入由 Independent 取得最高均值 `0.5468±0.0119`。这个差异揭示了论文优化目标和真实购买行为之间的语义边界。
 
