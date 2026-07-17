@@ -227,6 +227,6 @@ make all
 - `results/tables/rq2_paper_*.csv`
 - `results/tables/rq3_paper_*.csv`
 - `results/paper_experiments_summary.json`
-- `report/main.pdf`
+- `deliverables/final_report.pdf`
 
 阅读代码的建议顺序是 `market.py`、`pricing.py`、`milp.py`、`learning.py`、`discovery.py`，最后再看两个实验脚本。这样会先理解经济模型，再理解求解器和实验封装。

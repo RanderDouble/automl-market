@@ -1,0 +1,519 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\geometry{margin=1in}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+% 回溯原文标记：浅黑小字，屏幕和打印均可辨认
+% 用法：\srcref{§3} 或 \srcref{Thm 4.1} 或 \srcref{Alg 1, §5}
+\newcommand{\srcref}[1]{\textcolor{black!65}{\footnotesize\,[原：#1]}}
+
+% 标题对应的原文引用：同行 + 略小略浅
+\newcommand{\secref}[1]{\hspace{0.6em} \textcolor{black!80}{\footnotesize [原文 #1]}}
+
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{proposition}[theorem]{命题}
+\newtheorem{corollary}[theorem]{推论}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}[theorem]{注}
+
+\title{数据增强型 AutoML 市场的最优定价}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{背景}
+\secref{§1, §2}
+
+\subsection{简介}
+\secref{§1 Introduction}
+
+本文属于\textbf{机制设计（Mechanism Design）/ 数据市场（Data Market）}方向，具体研究面向机器学习消费者的数据增强型 AutoML 市场的定价机制。\srcref{§1}
+
+许多本可从机器学习获益的组织缺乏足够的训练数据，而另一些组织却积累着大量未被充分利用的数据。数据市场若能将数据供给方与 ML 消费方的需求匹配起来，可释放巨大价值。然而现有方案存在两类痛点：(i) 它们大多\emph{直接对原始数据集定价}，而非对数据经由训练模型所产生的实际效用定价；(ii) 价格的形成过程\emph{缺乏透明度}。此外，现有方案均未考虑通过\emph{数据增强（Data Augmentation）}来提升模型精度。\srcref{§1, p.1--2}
+
+\textbf{数据增强（Data Augmentation）}：将外部数据池中的特征列通过数据库 JOIN 操作拼接到买家的训练数据上，使模型在更多信息上训练，从而提升性能。
+
+在方法取向上，作者采取务实路线：不另起炉灶，而是设计一个可作为 Google Vertex AI、Amazon SageMaker 等云上 AutoML 平台\textbf{``Drop-in 替换''}的数据增强型 AutoML 市场。与标准 AutoML 的根本区别在于：(1) 平台会用外部数据池中的特征\emph{增强}买方提交的训练数据；(2) 买方主要按所获模型\emph{可衡量的质量提升}付费，而非按计算或模型搜索的工时成本付费。这一重心转移降低了买方参与风险，并为外部数据的货币化开辟了新的市场化机制。\srcref{§1, p.2}
+
+\subsection{相关工作}
+\secref{§2 Related Work}
+
+前人工作要么直接对原始数据表定价，要么假设模型建在市场全部数据之上、仅研究如何出售版本化模型。本文直接将``数据 + 模型''搜索过程建模，并把搜索结果反映到定价机制中。\srcref{§2, p.2}
+
+\subsection{核心概念速览}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{AutoML（Automated Machine Learning）}：自动完成特征工程、模型选择、超参数调优的 ML 开发流程。用户提供数据，平台返回训练好的模型。
+    \item \textbf{转移矩阵（Transition Matrix）} $P^t(q' \mid q)$：描述搜索过程中模型性能从当前状态 $q$ 跳到下一状态 $q'$ 的概率。刻画了``继续搜下去大概能拿到多好的结果''这一关键信息。
+    \item \textbf{价格曲线（Price Curve）} $x(q)$：平台事先公布的一张表，对每个可能的性能等级 $q$ 标注一个价格。买家在参与前就知道拿到多好的模型要付多少钱。
+    \item \textbf{Stackelberg 博弈（Stackelberg Game）}：平台先公布价格（领导者），买家看到价格后做最优停止（跟随者）。不是纳什均衡——因为有人先动并承诺，跟随者的反应可以被精确计算（DP）而非猜测。
+    \item \textbf{MILP（Mixed Integer Linear Programming，混合整数线性规划）}：同时包含连续变量（价格）和离散变量（买家的选择 $z\in\{0,1\}$）的线性优化问题，可由 Gurobi、CPLEX 等工业求解器高效求解。
+\end{itemize}
+
+\section{问题与方法}
+\secref{§3--§6}
+
+\subsection{数据增强型 AutoML 市场架构}
+\secref{§3 Data-Augmented AutoML Market Architecture}
+
+平台持有大量数据集，并同时对\emph{数据增强}（即与买方训练数据 JOIN 的额外特征）与\emph{模型}进行搜索。记 $q(C \leftarrow D)$ 为在数据 $D$ 上训练得到的模型 $C$ 的性能指标（如测试集准确率）。平台在预设时刻 $t=1,\dots,T$（例如每 5 分钟）向买方揭示当前模型指标 $q_t\in\mathcal{Q}$，$\mathcal{Q}$ 为有限离散指标集。\srcref{§3, p.2--3}
+
+\textbf{性能指标集} $\mathcal{Q}=\{q_1,\dots,q_K\}$，将连续的性能指标离散化为有限个质量等级，使问题可用 DP 和 MILP 求解。
+
+\textbf{马尔可夫转移矩阵} $P^t(q' \mid q) = \Pr(Q_{t+1}=q' \mid Q_t=q)$。由于梯度下降等优化算法的``未来表现仅依赖当前参数''性质，作者将指标演化建模为马尔可夫链。$P^t$ 是时变的（$t$ 越大，大幅提升的概率越小），设为公开信息（平台可作为``建议性指引''公开，类比 Google 广告平台公开出价指引）。\srcref{§3, p.3}
+
+\textbf{买方类型与估值} $\theta\in\Theta$。买方总体由私有类型 $\theta$ 刻画，$\theta$ 确定估值向量 $v^\theta(\cdot)\in\mathbb{R}_+^{|\mathcal{Q}|}$，即买方对每个质量等级愿意支付的最高金额。买方知道自身 $\theta$，平台仅知先验分布 $\mu$。\srcref{§3, p.3}
+
+\textbf{价格曲线与支付} $x\in\mathbb{R}_+^{\mathcal{Q}}$，预先公布、对所有买方相同。买方支付含两部分：
+\[
+u^\theta(q,x,c) = v^\theta(q) - x(q) - c\tau
+\]
+\begin{itemize}[leftmargin=*]
+    \item \textbf{强制部分} $c\tau$：数据发现成本。$c$ 为真实算力成本（远低于云平台计费单价，如 Vertex AI 的 \$3.465/节点小时），$\tau$ 为停止时刻。这部分覆盖计算资源消耗，不是平台利润。
+    \item \textbf{自愿部分} $x(q)$：若买方选择购买性能为 $q$ 的模型用于推理，则支付此价格。这是平台真正的利润来源。
+\end{itemize}
+\srcref{§3, p.3}
+
+\textbf{平台的最优定价问题：} 在先验 $\mu$、类型集 $\Theta$ 与指标动态 $\{P^t\}$ 给定下，求使市场期望收益最大的价格曲线 $\{x(q)\}_{q\in\mathcal{Q}}$。\srcref{§3, p.3}
+
+\subsection{三大技术挑战}
+\secref{§3 末，p.3}
+
+\begin{enumerate}[label=(\arabic*)]
+    \item 高效求最优定价机制 —— 本文理论贡献的核心，对应 §4；
+    \item 获取/学习先验 $\mu$ —— 定价模型的输入，对应 §5；
+    \item 有效搜索模型与数据并实时揭示性能 —— 定价模型的另一项输入，对应 §6。
+\end{enumerate}
+其中挑战 2 和 3 是为核心定价理论提供输入管线的配套工程——没有它们，定价模型没有 $\mu$ 和轨迹 $S$ 可用，但它们各自的解（贝叶斯更新 + Exp3）在理论上均属于现有技术的应用和适配。
+
+\subsection{挑战一：计算最优定价机制}
+\secref{§4 Finding the Optimal Pricing Mechanism}
+
+\subsubsection{买方最优响应作为最优停止问题}
+\secref{§4.1 Buyer's Best Response as Optimal Stopping}
+
+由于买方事前已知价格曲线与搜索成本，其参与过程是一个最优停止问题，实为 Pandora's Box 问题的带依赖变体：与标准 Pandora's Box 各箱子收益分布独立不同，本文的下一时刻随机收益依赖当前状态，这一依赖由马尔可夫链 $\{P^t\}$ 刻画。\srcref{§4, p.3--4}
+
+\textbf{DP 状态为什么是三维？} 买家停止时不一定购买当前轮的模型，而是购买历史上所有已发现模型中净效用最大的那个。因此状态必须记录：(1) $q_1$——历史最佳质量，(2) $q_2$——当前质量，(3) $t$——当前轮次。
+
+以 $\Phi(q_1,q_2,t)$ 记状态下的最优期望未来收益，其满足 Bellman 递推：
+\[
+\Phi(q_1,q_2,t) = \max\left\{
+\; v^\theta(q_1)-x(q_1)-c t,\quad
+\mathbb{E}_{q \sim P^t(\cdot\mid q_2)} \Phi\big(B(q_1,q),\, q,\, t+1\big)
+\right\}
+\]
+其中 $B(q_1,q) = \arg\max_{r\in\{q_1,q\}}\{v^\theta(r)-x(r)\}$ 选出历史与当前中净价值更高的质量。第一项为立即停止，第二项为继续一期的期望。\srcref{§4, Equ. (6), p.4}
+
+\begin{proposition}[Proposition 4.1]
+买方最优策略可通过动态规划在 $O(|\mathcal{Q}|^2 T)$ 时间内计算。
+\end{proposition}
+\srcref{Prop 4.1, p.4}
+
+\paragraph{Algorithm 3：最优停止 DP} \srcref{Alg 3, §4.1, p.13}
+
+\textbf{输入：} 估值 $v^\theta$、价格 $x$、转移矩阵 $P$、时域 $T$、发现成本 $c$。
+
+\textbf{输出：} 最优停止策略 $\tau^*$（每个状态下停还是继续）。
+
+\textbf{步骤概要：}
+\begin{enumerate}[leftmargin=*,nosep]
+    \item 初始化三维 DP 表 $\Phi(Q,Q,T)$；
+    \item 终端 $t=T$：对所有状态，$\Phi(q_1,q_2,T)=v^\theta(q_1)-x(q_1)-cT$（只能停）；
+    \item 对 $t = T-1$ 递减至 $1$：比较``立即停止''和``继续期望''，取大者填入 $\Phi(q_1,q_2,t)$；
+    \item 根据比较结果标记 $\tau^*(q_2,t) \in \{\text{STOP}, \text{CONT}\}$。
+\end{enumerate}
+
+\textbf{复杂度：} DP 表有 $|Q|^2 T$ 个状态，每个状态常数时间填表，总时间 $O(|Q|^2 T)$。
+
+\textbf{注：} Proposition 4.1 提供理论保证（``可以多项式时间计算''），Algorithm 3 是同一 DP 逻辑的伪代码实现。二者是同一方法的不同表述层次。
+
+\subsubsection{从经验数据近似求最优价格曲线}
+\secref{§4.2 Approximating the Optimal Price Curve from Empirical Data}
+
+当发现成本 $c\tau$ 相对估值和价格可忽略时，一条轨迹可压缩为可购买质量集合 $s$（停止时刻不再重要）。给定 $m$ 条样本轨迹 $S$ 和先验 $\mu$，平台问题是最大化：
+\[
+\max_x \sum_\theta \mu(\theta) \frac{1}{m} \sum_{s\in S} x\big(q^*(\theta,x,s)\big)
+\]
+其中 $q^*(\theta,x,s) = \arg\max_{q\in s} \{v^\theta(q)-x(q)\}$ 是买家的最优选择。这是\textbf{双层优化（Bilevel Optimization）}——外层平台选价格，内层买家最优响应。\srcref{§4.2}
+
+\textbf{MILP 四类决策变量：}\srcref{Equ. (8), p.4--5, 13--14}
+\begin{itemize}[leftmargin=*]
+    \item $x(q)$：每个质量的价格（连续变量）；
+    \item $z(\theta,s,q) \in \{0,1\}$：二元变量，$z=1$ 表示类型 $\theta$ 在轨迹 $s$ 中选择质量 $q$；
+    \item $a_{\theta,s}$：类型 $\theta$ 在轨迹 $s$ 中能获得的最大净效用；
+    \item $y(\theta,s,q)$：支付变量，用来线性化乘积 $x(q)\cdot z(\theta,s,q)$。
+\end{itemize}
+
+\textbf{关键约束（Big-M 法）：}
+\begin{align}
+& 0 \le a_{\theta,s} - [v^\theta(q)-x(q)] \le M(1-z(\theta,s,q)) \quad\text{（建模最优选择）}\\
+& \sum\nolimits_{q\in s} z(\theta,s,q) = 1 \quad\text{（必须选一个质量）}\\
+& y \le x,\; y \le M z,\; y \ge x - M(1-z),\; y \ge 0 \quad\text{（线性化乘积）}
+\end{align}
+
+\textbf{目标函数：} $\max \sum_\theta \mu(\theta) \sum_s \frac{1}{m} \sum_q y(\theta,s,q)$ —— 所有 $y$ 的先验加权平均。
+
+\begin{theorem}[Theorem 4.2：PAC 式近似最优定价]
+设发现成本 $c$ 相对买方估值可忽略，估值上界为 $b$。则使用 $m = \frac{b^2}{2\epsilon^2}\ln\frac{2}{\delta}$ 条样本轨迹时，上述 MILP 求得的价格曲线以至少 $1-2\delta$ 的概率是真实最优曲线的加性 $\epsilon$-近似。
+\end{theorem}
+\srcref{Thm 4.2, p.4--5}
+
+\textbf{证明骨架：}
+\begin{enumerate}[leftmargin=*,nosep]
+    \item \textbf{Lemma B.2}：证明 MILP (8) 精确编码了有限样本上的最优响应，得到的是样本上的精确最优价格。\srcref{p.14}
+    \item \textbf{Lemma B.4}：用 Hoeffding 不等式控制经验平均收入与总体期望收入的偏差；比较``经验最优价格''和``总体最优价格''，用 union bound 合并两边的概率 → 以 $1-2\delta$ 概率给出 $2\epsilon$ 近似。\srcref{p.15}
+\end{enumerate}
+
+\textbf{复现时需注意的建模边界：}
+\begin{itemize}[leftmargin=*]
+    \item 约束 $\sum_q z = 1$ 强制每个买家在每条轨迹中必须购买——即使所有净效用为负。这与正文描述的``自愿购买''语义不一致。
+    \item 若只设 $x(q)\ge 0$ 而无价格上界，则统一抬高所有价格不会改变选择却会无限增加收入（目标无界）。复现时显式加入有限价格上界。
+    \item 将价格限制在``各质量观测估值集合''内只是有限网格基线，不是一般多质量连续定价的精确解。
+\end{itemize}
+
+\subsection{挑战二：通过交互学习放松先验已知假设}
+\secref{§5 Relaxing Market's Prior Knowledge through Learning}
+
+平台不知道买家真实类型，但可以观察停止轮次。若已知在当前价格下各类型的停止似然，就可以用贝叶斯公式反推类型分布。\srcref{§5, p.5--6}
+
+\paragraph{Algorithm 1：贝叶斯学习} \srcref{Alg 1, §5, p.6}
+
+\textbf{输入：} 初始信念 $\mu^{(0)}$（均匀分布）、学习率序列 $\eta_t$、每批买家数量 $B$、总学习轮数 $N$。
+
+\textbf{输出：} 逐轮更新的信念 $\mu^{(t)}$。
+
+\textbf{步骤概要：}
+\begin{enumerate}[leftmargin=*,nosep]
+    \item \textbf{阶段一：预计算停止似然}。对每种买家类型 $\theta_i$，用 Algorithm 3 计算其在当前价格 $x^{(t)}$ 下的最优停止策略，然后通过大量模拟轨迹统计停止轮次的概率分布 $\Pr(y \mid \theta_i, x^{(t)})$ —— 这就是似然表。
+    \item \textbf{阶段二：在线学习循环}。每轮：\\
+    (a) 一批 $B$ 个买家参与交易，观察其停止轮次 $y^{(t)}_1, \dots, y^{(t)}_B$；\\
+    (b) 对每个观测，用贝叶斯公式计算后验：
+    \[
+    w^{(t)}(\theta_i) = \frac{\Pr(y^{(t)}\mid\theta_i, x^{(t)}) \cdot \mu^{(t)}(\theta_i)}
+    {\sum_j \Pr(y^{(t)}\mid\theta_j, x^{(t)}) \cdot \mu^{(t)}(\theta_j)}
+    \]
+    (c) 批次后验取平均，用学习率平滑更新：
+    \[
+    \mu^{(t+1)} = (1-\eta_t)\,\mu^{(t)} + \eta_t\,\bar{w}^{(t)}
+    \]
+\end{enumerate}
+
+\textbf{关键前提：可识别性（Identifiability）。} 不同类型必须产生可区分的停止时间分布。如果两类买家在所有价格下的停止行为几乎相同，仅凭停止时间就无法区分它们。论文指出这无损失一般性：如果两类买家对平台的学习算法不可区分，可将它们合并为一个有效类型来处理。\srcref{§5}
+
+\begin{definition}[估计误差代价 CEE（Cost of Estimation Error）]
+\[
+\mathrm{CEE}(\mu,P) = \mathrm{Rev}_{\mu^*,P^*}\big(x^*[\mu^*,P^*]\big) - \mathrm{Rev}_{\mu^*,P^*}\big(x^*[\mu,P]\big)
+\]
+即：平台用估计的 $(\mu,P)$ 设计价格，但收入在真实的 $(\mu^*,P^*)$ 下实现，与真正最优价格的收入差。
+\end{definition}
+\srcref{Def 5.1, p.6}
+
+\begin{theorem}[Theorem 5.2：估计误差代价的上界]
+若所学 $\mu$ 满足 $\|\mu-\mu^*\|_2 \le \epsilon$、转移矩阵满足 $\|P-P^*\|_2 \le \epsilon$，则 $\mathrm{CEE}(\mu,P) = O(\epsilon)$。
+\end{theorem}
+\srcref{Thm 5.2, p.6}
+
+\textbf{证明直觉：} 先验误差对收入的扰动是 Lipschitz 的（收入有界）；转移矩阵误差经有限时域 DP 逐层传播，误差至多按时域和价值上界线性累积；最后用三角不等式比较真实最优和估计最优价格。该定理推广了 Theorem 4.2（去掉了 $c$ 可忽略的假设）。\srcref{App. C, p.15--17}
+
+\subsection{挑战三：数据增强--模型发现过程（实现）}
+\secref{§6 Evaluation — Implementation of the Market}
+
+暴力搜索 $O(2^{|\mathcal{P}|} \cdot |\mathcal{M}|)$ 不可行。本文的发现引擎分两步配合：增强选择层用 Metam 框架剪枝搜索空间，模型选择层用 Exp3 Bandit 节约训练开销。\srcref{§6, p.7}
+
+\paragraph{Algorithm 2：增强--模型发现算法} \srcref{Alg 2, §6, p.7}
+
+\textbf{输入：} 训练数据 $D_{tr},D_{val}$、模型列表 $\mathcal{M}$、增强列表 $\mathcal{P}$。
+
+\textbf{输出：} 最优增强 $\widehat{T}$ 和对应最优模型 $\widehat{M}$。
+
+\textbf{步骤概要：}
+\begin{enumerate}[leftmargin=*,nosep]
+    \item 初始化所有模型权重 $w(M)=1$，设探索率 $\gamma=0.1$；
+    \item 每轮迭代：\\
+    (a) Metam 增强选择模块提出候选增强 $T_i \subseteq \mathcal{P}$；\\
+    (b) 按 Exp3 概率分布 $\Pr(M) = (1-\gamma)\frac{w(M)}{\sum w} + \frac{\gamma}{|\mathcal{M}|}$ 抽取一个模型 $M_i$；\\
+    (c) 只用 $T_i$ 增强的数据训练 $M_i$，得到性能指标作为奖励；\\
+    (d) 重要性加权更新：$w(M_i) \leftarrow w(M_i) \cdot \exp(\gamma \cdot \text{奖励} / (|\mathcal{M}| \cdot \Pr(M_i)))$；
+    \item 搜索结束后，对最有希望的 $t = \log|\mathcal{P}|$ 个增强，用最高权重模型做最终验证和交付。
+\end{enumerate}
+
+\textbf{为什么省训练？} Data-All 对每个增强训练全部 $|\mathcal{M}|$ 个模型；Data-Bandit 每轮只训练一个模型。同样的预算下可以探索更多增强候选。
+
+\begin{proposition}[Proposition A.1：发现算法的近似保证]
+在``最强模型的最佳增强不弱于其他增强''的条件下，算法在 $O(\log|\mathcal{P}| + |\mathcal{M}|)$ 次模型训练内得到近似最优解：
+\[
+m(\widehat{M} \leftarrow D_{in} \Join \widehat{T}) \ge m(M^* \leftarrow D_{in} \Join T^*) \times \frac{1}{\alpha}(1-e^{-\alpha\eta}) - k\epsilon
+\]
+其中 $\alpha,\eta$ 为性能函数 $m$ 的曲率与子模比，$k,\epsilon$ 为常数。
+\end{proposition}
+\srcref{Prop A.1, p.12}
+
+\section{主要结论}
+\secref{§7}
+
+\subsection{核心理论结论}
+
+\begin{enumerate}[label=(\arabic*),leftmargin=*]
+    \item \textbf{Proposition 4.1 / Algorithm 3：} 买方最优停止策略在 $O(|\mathcal{Q}|^2 T)$ 时间内可由 DP 计算。DP 状态需同时记录历史最佳质量和当前质量。
+    \item \textbf{Theorem 4.2：} 在发现成本可忽略时，仅用 $m = \frac{b^2}{2\epsilon^2}\ln\frac{2}{\delta}$ 条样本轨迹即可由 MILP 求得最优价格曲线的加性 $\epsilon$-近似，概率 $\ge 1-2\delta$（PAC 保证）。
+    \item \textbf{Theorem 5.2 / Algorithm 1：} 通过与买方重复交互的贝叶斯学习可逼近真先验 $\mu^*$，且估计误差对收入的损失有上界 $\mathrm{CEE}=O(\epsilon)$。
+    \item \textbf{Proposition A.1 / Algorithm 2：} Data-Bandit 将每个模型视为 Exp3 臂，每轮仅训练一个模型，在 $O(\log|\mathcal{P}|+|\mathcal{M}|)$ 次训练内收敛到近似最优解。
+\end{enumerate}
+
+\subsection{实验全景：三个 RQ 与算法的对应关系}
+
+三个研究问题各自验证一个技术组件，合在一起覆盖论文的完整技术栈：
+
+\begin{table}[h]
+\centering
+\small
+\caption{三个 RQ 与算法和定价基线的对应关系}
+\begin{tabularx}{\textwidth}{@{}lYYYY@{}}
+\toprule
+RQ & 验证什么 & 依赖的算法/理论 & 比较的基线 & 代码入口 \\
+\midrule
+\textbf{RQ1} & Data-Bandit 能否用更少训练找到好组合 & Algorithm 2（Exp3 Bandit） & Data-All, Data-Alt, AutoML & \path{scripts/run_rq1.py} \\
+\textbf{RQ2} & MILP 定价是否比简单方法更赚钱 & Theorem 4.2（MILP） & Independent, Shift, Jiggle, OOS-MILP & \path{scripts/run_paper_experiments.py} \\
+\textbf{RQ3} & 能否从停止时间学到真实 $\mu$ & Algorithm 1（贝叶斯学习） & 三种学习率, 两种批量 & \path{scripts/run_paper_experiments.py} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Algorithm 3（最优停止 DP）本身不被任何 RQ 单独验证——它是所有实验的底层基础设施，默认买方总是按最优策略行动。
+
+\subsection{RQ1：数据增强--模型发现的效果}
+\secref{§6, RQ1: How effective is our market in finding high-quality augmentations and models?}
+
+\subsubsection{验证对象和对应的算法}
+
+RQ1 验证的是 \textbf{Algorithm 2（Data-Bandit）}。之前讲过这个算法——把每个 ML 模型看作 Exp3 的一只臂，每轮只抽取一个模型训练，用重要性加权奖励更新模型权重。问题是：这种"节约训练"的策略，会不会因为样本太少而漏掉真正好的模型组合？
+
+\subsubsection{原论文实验设置}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{数据集池：} 69K NYC Open Data 数据集（约 30M 列、3B 行）
+    \item \textbf{任务数量：} 1000 个分类和回归任务（例：预测学校标准化考试成绩，2000 条/6 特征；预测交通事故数，400 条/4 特征）
+    \item \textbf{模型库：} Random Forest、XGBoost、Neural Network 等多种 AutoML 可选的模型
+    \item \textbf{性能指标：} 横轴为搜索时间（秒），纵轴为效用（Utility）。分类用准确率衡量，回归用类似指标
+    \item \textbf{发现方法：} 增强选择层用 Metam 框架剪枝搜索空间 + 模型选择层用 Exp3 抽样训练
+\end{itemize}
+\srcref{§6, p.7--8}
+
+\subsubsection{四种竞争方法}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{\texttt{Data-Bandit}（本文方法）：} 每轮 Metam 选一个候选增强，Exp3 按权重分布抽取一个模型训练，用该模型在此增强上的性能作为奖励更新权重。搜索结束后在最优增强上验证所有模型。
+    \item \textbf{\texttt{Data-All}（完整预算参照）：} 对 Metam 选出的每个增强，训练全部 $|\mathcal{M}|$ 个模型。搜索最全面，但消耗预算最快。
+    \item \textbf{\texttt{Data-Alt}（低成本对照）：} 固定一个高效模型（如 Random Forest）来评估每个增强，每隔一分钟用 TPOT AutoML 在最佳增强上做一次完整的模型搜索。用于判断收益是否真的来自 Bandit 的自适应。
+    \item \textbf{\texttt{AutoML}（纯模型搜索）：} 不搜索外部数据增强，只用 TPOT 在买家原始数据上搜索最佳模型。用于量化"加入外部数据"本身的价值。
+\end{enumerate}
+\srcref{§6, p.7--8}
+
+\subsubsection{原论文关键结果}
+
+\begin{itemize}[leftmargin=*]
+    \item 分类任务上 Data-Bandit 平均效用 $>0.85$，次优（Data-All 或 Data-Alt）仅 $>0.7$，AutoML 约 $0.55$。
+    \item 回归任务上同样：固定任意搜索时间点，Data-Bandit 的效用都高于所有基线。
+    \item 大多数任务识别的增强数量不超过 10 个，说明 Metam 的剪枝有效。
+    \item 搜索时间更短 = 买家等待更短 + 搜索成本更低——对低估值买家尤其重要。
+\end{itemize}
+\srcref{Fig. 3, §6, p.8}
+
+\textbf{结论：} Data-Bandit 不仅省了训练（每轮只训一个模型），而且找到了比其他方法更好的组合——因为同样的时间预算下，它可以探索更多增强候选。
+
+\subsubsection{复现中的做法和差异}
+
+原文用的 NYC 数据池、Metam 配置和完整任务集均未公开。本项目的 RQ1 用 UCI Wine Quality 做缩减复现：
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{数据：} UCI Wine Quality 红葡萄酒和白葡萄酒数据，2 个基础特征 + 9 个特征分别作为可连接的外部增强表
+    \item \textbf{任务：} 分类（质量 $\ge 6$ 为好酒）和回归（预测评分）各 30 个重复任务，共 60 个任务
+    \item \textbf{模型：} 6 个自包含模型族（Linear-0.01/0.1/1/10, Quadratic, RandomFeatures），用 Ridge 回归/分类统一训练
+    \item \textbf{预算：} 每方法最多 60 次模型训练。验证集用于搜索和选择，测试集仅用于报告 Incumbent 曲线
+    \item \textbf{指标：} final\_utility（预算用尽时的测试效用）、normalized\_AUC（搜索全过程的平均测试效用）、calls\_to\_95pct\_oracle\_gain（达到 oracle 的 95\% 增益所需训练次数）、配对 bootstrap（同任务上方法间的 AUC 差值的置信区间）
+\end{itemize}
+
+\textbf{复现关键数字：}
+\begin{itemize}[leftmargin=*]
+    \item Data-Bandit 相对 Data-All 的 AUC 差：分类 $+0.00794$ [0.00340, 0.01220]，回归 $+0.00335$ [0.00185, 0.00481]。区间不跨 0，差异显著。
+    \item 达到 95\% oracle 增益所需训练减少：分类 30.3\%，回归 27.5\%。
+    \item Data-All 的 60 次预算终点效用仍最高（分类 0.74083 vs Bandit 0.73931，回归 0.54715 vs Bandit 0.54590），但差距极小。
+    \item Data-Bandit 与 Data-Alt 的 AUC 配对区间跨 0——只能说表现相当，不能声称显著更好。
+\end{itemize}
+
+\textbf{与原文 Figure 3 的定性对比：} 原文结论是"Data-Bandit 可以在更短时间内达到更高效用"，复现同样观察到了这一点（AUC 显著更高）。但原文还声称"终点也最优"，复现在此点上有保留——Data-All 用满预算后略优。
+
+\subsection{RQ2：定价方法的收入比较}
+\secref{§6, RQ2: How do different pricing schemes perform?}
+
+\subsubsection{验证对象和对应的理论}
+
+RQ2 验证的是 \textbf{Theorem 4.2 的 MILP 定价}。纸面上 MILP 可以精确求样本最优价格，但在真实市场（样本有限、轨迹随机）中，它能比简单方法多赚多少钱？
+
+\subsubsection{原论文实验设置}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{任务数据：} NYC School Data，100 个任务
+    \item \textbf{设置：} $|\mathcal{Q}| = 20$ 个质量等级，$|\Theta| = 20$ 种买家类型，$m = 100$ 条样本轨迹
+    \item \textbf{IS（In-Sample）：} 所有质量在训练轨迹中均可达，用于训练价格曲线
+    \item \textbf{OOS（Out-of-Sample）：} 从真实性能轨迹中随机抽取，买家的可选质量子集受限——测试价格的泛化能力
+    \item \textbf{指标：} 归一化期望利润 = 平台收入 / 零价格下的总福利（总福利 = 所有买家在价格全为 0 时的最大净效用之和，代表任何定价机制的理论收入上界）
+\end{itemize}
+\srcref{§6, p.8--9}
+
+\subsubsection{五种定价方法}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{MILP（IS）：} 在 IS 轨迹上用 MILP (8) 求解——论文的核心方法。
+    \item \textbf{Independent（独立定价）：} 对于每个质量 $q$，将其估值 $V_q$ 视为只依赖先验 $\mu$ 的独立随机变量，分别求垄断价格 $x(q) = \arg\max_p \; p \cdot \Pr(V_q \ge p)$。这是 Myerson 最优拍卖理论在单物品上的应用——但本文是多质量场景，质量之间不独立。\srcref{App. D.1}
+    \item \textbf{Shift（偏移定价）：} 以 Independent 的定价为基准，将每个质量的价格沿估值排序统一向上或向下偏移同一个秩位。搜索所有可能的偏移量 $k \in \{-|\Theta|,\dots,|\Theta|\}$，取收入最大的。由于 Independent 是 $k=0$ 的特殊情况，Shift 在训练样本上永远不会比 Independent 差。\srcref{App. D.1}
+    \item \textbf{Jiggle（微调定价）：} 从最优 Shift 出发，反复尝试两类局部改进：(a) 对选择概率高的质量提价一档；(b) 对选择概率低的质量降价一档。只接受严格改进的修改，直到无法继续。搜索上限为 $O(|\Theta||\mathcal{Q}|)$ 步。Jiggle 在训练样本上永远不会比 Shift 差（Shift 是其初始解）。\srcref{App. D.1}
+    \item \textbf{OOS-informed MILP：} 直接在 OOS 轨迹上训练 MILP——作为参考上界，不代表实际可部署方法（因为训练时已经"偷看"了测试轨迹）。
+\end{enumerate}
+
+\textbf{基线间的理论关系：} Jiggle $\ge$ Shift $\ge$ Independent——后一个总是前一个的搜索起点。三者在样本上的训练目标严格递增，但在 OOS 泛化时可能因为过拟合而出现反转。
+
+\subsubsection{原论文关键结果}
+
+\begin{itemize}[leftmargin=*]
+    \item IS 中 MILP 捕获约 85\% 的总福利，所有基线不足 80\%。Shift/Jiggle 的目标改进关系成立。
+    \item OOS 中 MILP 仍优于其他基线，仅落后于 OOS-informed MILP（参考上界）。
+    \item 横轴是定价方法，纵轴是归一化利润，越高越好。MILP 在两种设置下均为最高（除 OOS-informed 外）。
+\end{itemize}
+\srcref{Fig. 4, §6, p.8--9}
+
+\textbf{结论：} MILP 不仅理论上最优（Thm 4.2），实际中也比简单独立定价多赚 5--10 个百分点的福利。
+
+\subsubsection{复现中的做法和差异}
+
+原文的 School Data 估值和完整代码未公开。本项目用 10 个随机合成任务做缩减复现（种子固定 20260716）：
+
+\begin{itemize}[leftmargin=*]
+    \item $|\mathcal{Q}|=4$ 个质量状态，$|\Theta|=6$ 种买家类型，$T=6$ 轮搜索
+    \item IS 训练集：100 条轨迹（所有质量可达）。OOS 测试集：4000 条从 Markov 过程随机生成的轨迹
+    \item 比较方法：MILP (IS)、Independent、Shift、Jiggle、OOS-informed MILP
+    \item \textbf{特殊处理——两种支付指标：} (a) \texttt{forced\_*}：严格按论文式强制选择（$\sum_q z = 1$，即使净效用为负也必须买）；(b) \texttt{realized\_*}：加入零价值、零价格的不购买选项后的真实可实现收入
+\end{itemize}
+
+\textbf{复现关键数字：}
+
+\begin{table}[h]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{RQ2 复现：归一化收入（均值 $\pm$ 标准误）}
+\begin{tabular}{lrrrr}
+\toprule
+方法 & 强制 IS & 强制 OOS & 实现 IS & 实现 OOS \\
+\midrule
+MILP (IS) & $0.7926\pm0.0098$ & $0.8678\pm0.0094$ & $0.4263\pm0.0164$ & $0.4075\pm0.0138$ \\
+Independent & $0.4880\pm0.0130$ & $0.5654\pm0.0131$ & $0.4880\pm0.0130$ & $0.5468\pm0.0119$ \\
+Shift & $0.6157\pm0.0183$ & $0.7205\pm0.0153$ & $0.4007\pm0.0221$ & $0.3789\pm0.0221$ \\
+Jiggle & $0.6353\pm0.0214$ & $0.7389\pm0.0176$ & $0.4171\pm0.0181$ & $0.3982\pm0.0166$ \\
+OOS-informed MILP & $0.7898\pm0.0101$ & $0.8726\pm0.0090$ & $0.4279\pm0.0190$ & $0.4151\pm0.0159$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{与原文的定性和差异：}
+\begin{itemize}[leftmargin=*]
+    \item 强制购买指标下，MILP 的 IS 归一化收入为 $0.7926$，定性接近原文的约 85\%。Shift $\ge$ Independent、Jiggle $\ge$ Shift 的关系成立。
+    \item 加入不购买选项后，本缩减设置中 Independent 的 OOS 实现收入最高（$0.5468$），而 MILP 只有 $0.4075$。这说明"优化强制支付"的目标函数不等于"优化真实可收收入"——评价指标的选择会改变方法排序。
+    \item 这不是 Independent 普遍最优的结论，而是说明论文 MILP 在模型设计中假设了 $\sum_q z = 1$ 的强制购买约束，这个约束与正文描述的"自愿购买"语义之间存在 gap。
+\end{itemize}
+
+\subsection{RQ3：从停止时间学习买家类型分布}
+\secref{§6, RQ3: How to learn the prior distribution $\mu$?}
+
+\subsubsection{验证对象和对应的算法}
+
+RQ3 验证的是 \textbf{Algorithm 1（贝叶斯平滑学习）}。理论上有前提：可识别性（不同类型必须有不同的停止分布）。问题是在实际中，学习速度和稳定性如何？学习率怎么选？
+
+\subsubsection{原论文实验设置}
+
+\begin{itemize}[leftmargin=*]
+    \item $|\mathcal{Q}| = 10$ 个质量等级（如 100\%, 99\%, $\dots$, 91\%），$n = 5$ 种买家类型，$T = 15$ 轮搜索上限
+    \item \textbf{先验分布族：} 随机生成的、均匀的、略微偏斜的、高度偏斜的、极端偏斜的（$\alpha=1,\beta=5$ 的 Beta 分布）
+    \item \textbf{学习率比较：} $\eta_t = 1/(t+1)$（保守）、$\eta_t = 1/\sqrt{t}$（中等）、$\eta_t = 1/2$（激进常数）
+    \item \textbf{批量大小：} $b = 10$ 和 $b = 100$。大批量 = 每轮用更多买家的停止时间先取后验平均再平滑，降低单轮噪声
+    \item \textbf{评价指标：} KL 散度 $D_{KL}(\mu^* \| \mu^{(t)})$。横轴为学习轮数，纵轴为 KL（对数尺度）。越小越好。
+\end{itemize}
+\srcref{§6, p.9, App. D.2}
+
+\subsubsection{原论文关键结果}
+
+\begin{itemize}[leftmargin=*]
+    \item 学习确实收敛到真实分布，KL 散度降至 $< 0.025$。
+    \item 更激进的学习率收敛更快，但在小批量时波动明显——常数 $1/2$ 不会随时间衰减，尾部持续受抽样噪声影响。
+    \item 增大批量（$b = 100$）可平滑激进学习率的振荡。
+    \item 该结论在五种不同先验分布上均成立。
+\end{itemize}
+\srcref{Fig. 5, App. D.2, Fig. 6--8}
+
+\subsubsection{复现中的做法和差异}
+
+RQ3 的似然来自透明合成 Markov 环境，不是原文的随机实例。但验证的是完全相同的现象：
+
+\begin{itemize}[leftmargin=*]
+    \item 显式构造 5 种可区分的停止分布：平均停止轮次分别约为 1.0、4.0、7.2、10.2、12.6，最小成对 $L_1$ 距离约 0.656——确保可识别性假设被显式满足
+    \item 5 种先验 × 3 种学习率 × 2 种批量 × 5 个随机种子 × 1000 轮学习 = 完整覆盖
+    \item 指标：final\_kl（最后一轮误差）、tail\_mean\_kl（最后 100 轮平均，避免偶然值）、tail\_std\_kl（最后 100 轮波动）
+\end{itemize}
+
+\textbf{复现关键数字（随机先验、批量 100）：}
+
+\begin{table}[h]
+\centering
+\small
+\caption{RQ3 复现：不同学习率的收敛对比}
+\begin{tabular}{lrrr}
+\toprule
+学习率 & 第 1000 轮 KL & 尾部平均 KL & 尾部标准差 \\
+\midrule
+$1/(t+1)$ & $0.03752\pm0.01698$ & 0.03754 & 0.00008 \\
+$1/\sqrt t$ & $0.00684\pm0.00444$ & 0.00689 & 0.00019 \\
+$1/2$ & $0.00519\pm0.00166$ & 0.00643 & 0.00353 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{与原文的定性对比：}
+\begin{itemize}[leftmargin=*]
+    \item 原文观察到"激进学习率收敛更快但更不稳定，可被大批量平滑"——复现完全验证。
+    \item 常数 $1/2$ 的尾部方差为 $0.00353$，是 $1/(t+1)$ 的 44 倍——虽然第 1000 轮的点估计最好（0.00519），但过程不稳定。批量 10 时尤其严重（平均最终 KL 约 0.1965，尾部标准差约 0.0488）。
+    \item $1/\sqrt t$ 在速度、稳定性和最终误差之间取得了最好的平衡，与论文正文和附录 D.2 的定性结论一致。
+\end{itemize}
+
+\subsection{复现中的建模边界}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{强制购买约束 $\sum_q z = 1$ 与自愿购买语义的矛盾}：论文正文将购买描述为自愿行为，但 MILP 强制每个类型在每条轨迹购买一个模型。如果所有模型净效用为负，真实买家会退出，但 MILP 目标仍记录正支付。复现同时报告两种指标以明确这个边界。
+    \item \textbf{价格上界的必要性}：强制购买且仅有 $x(q)\ge0$ 时，统一抬高所有价格会无限增加收入——问题无界。复现显式加入有限价格上界。
+    \item \textbf{估值网格不是连续定价的精确解}：将价格限制在各质量观测估值集合上是透明有限网格基线，但跨质量无差异超平面可能产生非观测估值处的最优价格。
+    \item \textbf{开源 HiGHS 求解边界}：对 $|\mathcal{Q}|=20,|\Theta|=20,m=100$ 的模型，60 秒内最优性间隙很大（约 57.6\%/568\%），因此不宣称完成论文规模的最优 MILP 求解。
+\end{itemize}
+
+\subsection{局限性与扩展}
+\secref{§7 Conclusion}
+
+作者指出本文是迈向``端到端在线 AutoML 市场''这一更大愿景的一步，承认构建完全可用的在线市场仍需解决不少重要挑战（如发现引擎的实时性、买方估值分布的真实获取等）。\srcref{§7, p.9}
+
+复现项目有三项主要限制：RQ1 使用公开 UCI 数据替代原文 NYC 数据池；RQ2 的 School 数据估值和代码未公开；RQ3 的似然由透明合成 Markov 环境生成，验证的是算法语义和定性现象而非逐点复刻原文 Figure 3--5。
+
+\end{document}

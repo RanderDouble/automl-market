@@ -1,6 +1,6 @@
 # RQ1 / RQ3 逐页讲稿
 
-对应：`slides/rq1_rq3_presentation.pdf`。正常汇报讲第 1–11 页，约 7–8 分钟；第 12–14 页是老师追问时使用的备查页。
+对应：`deliverables/rq1_rq3_slides.pdf`。正常汇报讲第 1–11 页，约 7–8 分钟；第 12–14 页是老师追问时使用的备查页。
 
 ## Slide 1｜标题（10 秒）
 

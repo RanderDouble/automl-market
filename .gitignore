@@ -2,36 +2,21 @@ __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
-report/*.aux
-report/*.fdb_latexmk
-report/*.fls
-report/*.log
-report/*.out
-report/*.synctex.gz
-report/*.toc
-report/*.xdv
-slides/*.aux
-slides/*.fdb_latexmk
-slides/*.fls
-slides/*.log
-slides/*.nav
-slides/*.out
-slides/*.snm
-slides/*.synctex.gz
-slides/*.toc
-slides/*.vrb
-slides/*.xdv
-# RQ1/RQ3 handout LaTeX auxiliaries
-docs/*.aux
-docs/*.fdb_latexmk
-docs/*.fls
-docs/*.log
-docs/*.out
-docs/*.toc
-docs/*.xdv
-# ZBY standalone build directory (final PDFs are copied to slides/)
-slides/zby/build/
-# Legacy local preview; canonical artifact is rq1_rq3_presentation.pdf
-slides/rq1_rq3_preview.pdf
+
+# LaTeX intermediates. Builds run under /tmp/automl-market-latex.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+**/build/
 
 .DS_Store

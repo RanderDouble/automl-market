@@ -76,7 +76,7 @@ make slides             # 编译中期展示 PDF
 make all
 ```
 
-执行顺序：测试 → 补充实验 → RQ1 → RQ2/RQ3 → 中文报告 → 展示。随机种子已固定，同一软件环境下每次跑出来的 CSV/JSON 和图完全一致。
+执行顺序：测试 → 补充实验 → RQ1 → RQ2/RQ3 → 中文报告 → 两套展示 → RQ1/RQ3 讲义 → 论文摘要。随机种子已固定，同一软件环境下每次跑出来的 CSV/JSON 和图完全一致。LaTeX 中间文件统一写入 `/tmp/automl-market-latex`，仓库中只保留最终 PDF。
 
 如果不想一直激活 Conda 环境，也可以临时用 `conda run`：
 
@@ -92,18 +92,40 @@ conda run -n automl-market make all
 - `results/tables/rq2_paper_*.csv`：RQ2 IS/OOS 收入；
 - `results/tables/rq3_paper_*.csv`：RQ3 多先验、学习率和批量结果；
 - `results/figures/rq*_*.pdf|png`：报告图；
-- `report/main.pdf`：中文复现报告；
-- `slides/midterm.pdf`：已有中期展示和 `slides/speaker_notes.md` 讲稿。
+- `deliverables/final_report.pdf`：中文复现报告；
+- `deliverables/project_overview_slides.pdf`：完整项目展示；
+- `deliverables/rq1_rq3_handout.pdf`：RQ1/RQ3 详细讲义；
+- `deliverables/rq1_rq3_slides.pdf`：RQ1/RQ3 正式汇报；
+- `deliverables/zby_theory_slides.pdf`：ZBY 的论文理论部分。
+
+## 项目结构
+
+```text
+automl-market/
+├── papers/                 # 原论文及中文摘要
+├── deliverables/           # 可直接查看或提交的最终 PDF
+├── docs/                   # 论文讲解、复现指南、讲义源码
+├── slides/
+│   ├── rq1_rq3/            # 本项目的 RQ1/RQ3 页面与讲稿
+│   ├── project_overview/   # 完整项目展示与讲稿
+│   └── zby/                # 仅保留 ZBY 的理论页、模板和素材
+├── src/                    # Python 实现
+├── scripts/                # 实验入口
+├── tests/                  # 单元测试
+└── results/                # CSV/JSON 与实验图
+```
+
+原论文位于 `papers/Han2023_Optimal_Pricing_Data-Augmented_AutoML.pdf`。目录职责详见 [`slides/README.md`](slides/README.md) 和 [`deliverables/README.md`](deliverables/README.md)。
 
 ## RQ1 / RQ3 中期汇报材料
 
 负责 RQ1 与 RQ3 的同学可直接使用：
 
-- `docs/rq1_rq3_handout.pdf`：13 页详细中文讲义，覆盖研究问题、Algorithm 1/2、原论文实验、缩减复现、讲述稿和问答；
-- `slides/rq1_rq3_presentation.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，前 11 页为正式汇报，后 3 页为备查；
-- `slides/rq1_rq3_slides.tex`：可插入 ZBY 主文件的 frame 源码；
-- `slides/zby/C3_RQ1_RQ3.tex`：同风格独立预览入口；
-- `slides/rq1_rq3_speaker_notes.md`：约 7--8 分钟逐页讲稿。
+- `deliverables/rq1_rq3_handout.pdf`：13 页详细中文讲义，覆盖研究问题、Algorithm 1/2、原论文实验、缩减复现、讲述稿和问答；
+- `deliverables/rq1_rq3_slides.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，前 11 页为正式汇报，后 3 页为备查；
+- `slides/rq1_rq3/frames.tex`：可插入 ZBY 主文件的 frame 源码；
+- `slides/rq1_rq3/main.tex`：同风格独立编译入口；
+- `slides/rq1_rq3/speaker_notes.md`：约 7--8 分钟逐页讲稿。
 
 重新编译：
 
@@ -111,6 +133,8 @@ conda run -n automl-market make all
 make rq-handout
 make rq-slides
 ```
+
+两条命令只在 `/tmp` 产生中间文件，并分别更新 `deliverables/rq1_rq3_handout.pdf` 和 `deliverables/rq1_rq3_slides.pdf`。
 
 ## 当前核心结果
 

@@ -1,10 +1,18 @@
 # Changelog
 
+## 0.6.0 - 2026-07-17
+
+- 重整项目目录：原论文与中文摘要归入 `papers/`，可直接提交的 PDF 统一归入 `deliverables/`。
+- 将当前同学的 RQ1/RQ3 页面、入口和讲稿移至 `slides/rq1_rq3/`；`slides/zby/` 只保留 ZBY 的理论源码、模板和素材。
+- 将完整项目展示归入 `slides/project_overview/`，补充各幻灯片子目录和交付目录说明。
+- 删除根目录 `C4/`、重复讲义源码、旧预览、嵌套构建目录及全部 LaTeX/Python 缓存。
+- LaTeX 改为统一在 `/tmp/automl-market-latex` 构建，再复制最终 PDF；仓库不再产生 `build/` 或辅助文件。
+
 ## 0.5.0 - 2026-07-17
 
-- 新增 13 页 `docs/rq1_rq3_handout.pdf`，详细解释 RQ1/Algorithm 2 与 RQ3/Algorithm 1，包括原论文实验、缩减复现、指标、讲述稿和问答。
-- 纳入 ZBY 使用的修改版 ZJU Beamer 模板和源码，新增 14 页同风格 `slides/rq1_rq3_presentation.pdf`；前 11 页为正式汇报，后 3 页为备查。
-- 新增可并入 ZBY 主文件的 `slides/rq1_rq3_slides.tex`、独立编译入口和 7--8 分钟逐页讲稿。
+- 新增 13 页 `deliverables/rq1_rq3_handout.pdf`，详细解释 RQ1/Algorithm 2 与 RQ3/Algorithm 1，包括原论文实验、缩减复现、指标、讲述稿和问答。
+- 纳入 ZBY 使用的修改版 ZJU Beamer 模板和源码，新增 14 页同风格 `deliverables/rq1_rq3_slides.pdf`；前 11 页为正式汇报，后 3 页为备查。
+- 新增可并入 ZBY 主文件的 `slides/rq1_rq3/frames.tex`、独立编译入口和 7--8 分钟逐页讲稿。
 - 从本地论文提取 Figure 3/5 图像用于原文与复现对照；修正 RQ3 尾部平均 KL 数字，并保持不可逐点复现的诚实边界。
 - 新增 `make rq-handout` 与 `make rq-slides`，同时将环境说明改为可移植的 Conda 命令。
 
