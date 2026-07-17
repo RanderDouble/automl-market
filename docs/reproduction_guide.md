@@ -22,51 +22,75 @@
 
 ## 2. 环境与完整复现
 
-推荐使用 Conda：
+### 2.1 创建环境
+
+从项目根目录开始：
 
 ```bash
+# 1. 用 environment.yml 创建 Conda 环境（包含 Python、NumPy、Matplotlib、HiGHS 等）
 conda env create -f environment.yml
+
+# 2. 激活环境
 conda activate automl-market
-make all
+
+# 3. 验证环境：跑通单元测试
+make test
 ```
 
-当前机器已有环境时，可以不激活，直接指定解释器：
+测试全部通过（或因缺少 `highspy` 跳过 3 项 MILP 测试）即为环境准备完毕。
+
+如果不用 Conda，也可以 pip 安装：
 
 ```bash
-make all PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
+pip install -r requirements.txt
+pip install -r requirements-milp.txt   # MILP 可选
 ```
 
-`make all` 的执行顺序是：14 项单元测试；补充定价实验；RQ1；RQ2/RQ3；中文报告；中期展示。默认实验固定随机种子，所以同一软件环境下应得到相同 CSV/JSON 和图。
+### 2.2 快速试跑（可选）
 
-如果只复现论文三组实验，不重新编译文档：
-
-```bash
-make rq1 PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
-make paper-experiments PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
-```
-
-## 3. 快速教学运行
-
-完整实验适合生成报告；第一次理解代码时，可以先减小重复次数。快速运行只检查数据流和算法能否端到端执行，数字不应拿来替代报告的完整统计结果。
+完整实验耗时较长，建议第一次先跑缩小版，确认端到端能通：
 
 ```bash
 rm -rf /tmp/automl-market-demo
 MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
-  /home/rander/miniforge3/envs/automl-market/bin/python \
-  scripts/run_rq1.py --output /tmp/automl-market-demo \
+  python scripts/run_rq1.py --output /tmp/automl-market-demo \
   --repeats-per-color 1 --budget 12
 
 MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
-  /home/rander/miniforge3/envs/automl-market/bin/python \
-  scripts/run_paper_experiments.py --output /tmp/automl-market-demo \
+  python scripts/run_paper_experiments.py --output /tmp/automl-market-demo \
   --rq2-repeats 2 --rq3-seeds 1 --rq3-rounds 100
 ```
 
-成功时，终端会分别打印 `Completed RQ1 ...` 和 `Completed RQ2 ... and RQ3 ...`，并在 `/tmp/automl-market-demo` 下生成 JSON、CSV 和图。
+### 2.3 完整复现
 
-## 4. RQ1：数据与发现算法
+激活环境后，按需执行：
 
-### 4.1 实验单位
+```bash
+make rq1                # RQ1：60 个公开数据重复任务
+make paper-experiments  # RQ2/RQ3：10 个定价任务 + 先验学习
+make report             # 编译中文 PDF 报告（依赖前面的 JSON/CSV）
+```
+
+或者一键全跑：
+
+```bash
+make all
+```
+
+执行顺序：测试 → 补充实验 → RQ1 → RQ2/RQ3 → 中文报告 → 展示。随机种子已固定，同一软件环境下每次跑出来的 CSV/JSON 和图完全一致。
+
+如果只想复现论文三组实验，不重新编译文档：
+
+```bash
+make rq1
+make paper-experiments
+```
+
+成功时，终端会分别打印 `Completed RQ1 ...` 和 `Completed RQ2 ... and RQ3 ...`，并在输出目录下生成 JSON、CSV 和图。
+
+## 3. RQ1：数据与发现算法
+
+### 3.1 实验单位
 
 - 数据：UCI Wine Quality 红葡萄酒与白葡萄酒数据；压缩包保存在 `data/raw/wine-quality.zip`。
 - 任务：分类与回归各 30 个重复任务，共 60 个任务。
@@ -75,7 +99,7 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 - 预算：每个方法最多 60 次模型训练。
 - 随机种子：由任务类型、数据颜色和重复编号确定，起始基数为 31000。
 
-### 4.2 四种方法到底差在哪里
+### 3.2 四种方法到底差在哪里
 
 - **Data-Bandit**：每轮选择一个增强，并按 Exp3 概率只训练一个模型；奖励更新该模型的权重。
 - **Data-All**：对当前增强训练全部模型，单轮更全面，但消耗预算更快。
@@ -84,7 +108,7 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 
 验证集用于搜索和选择，测试集只用于报告 incumbent 曲线，避免直接用测试分数指导搜索。
 
-### 4.3 指标怎样读
+### 3.3 指标怎样读
 
 - `final_utility`：预算用完时的测试效用；回答“最后谁最好”。
 - `normalized_auc`：预算 1 到 60 的 incumbent 测试效用平均值；回答“整个搜索过程谁更早找到好方案”。这里的 normalized 指按预算长度取平均，不是再除以 oracle。
@@ -100,9 +124,9 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 - `results/tables/rq1_paired_comparisons.csv`：配对区间；
 - `results/figures/rq1_discovery.pdf`：报告图。
 
-## 5. RQ2：定价收入的 IS/OOS 比较
+## 4. RQ2：定价收入的 IS/OOS 比较
 
-### 5.1 实验单位
+### 4.1 实验单位
 
 - 10 个随机任务；固定总种子 20260716。
 - 每个任务有 4 个质量状态、6 个买家类型。
@@ -112,7 +136,7 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 
 IS 训练集合让所有质量都可达，用于拟合论文式价格；OOS 轨迹来自随机发现过程，用于检查价格换到真实可达集合后是否仍有效。OOS-informed MILP 看到了 OOS 训练轨迹，只作为参考上界式对照，不是实际可部署方法。
 
-### 5.2 为什么报告两种收入
+### 4.2 为什么报告两种收入
 
 - `forced_*`：严格遵循论文 MILP 的强制选择语义，每个买家都购买一个可达质量。
 - `realized_*`：给买家零效用的不购买选项；如果所有模型净效用都为负，收入为零。
@@ -125,9 +149,9 @@ IS 训练集合让所有质量都可达，用于拟合论文式价格；OOS 轨�
 - `results/tables/rq2_paper_summary.csv`：均值与标准误；
 - `results/figures/rq2_paper_reproduction.pdf`：强制/实现收入的 IS/OOS 图。
 
-## 6. RQ3：从停止时间学习类型先验
+## 5. RQ3：从停止时间学习类型先验
 
-### 6.1 实验单位
+### 5.1 实验单位
 
 - 10 个质量状态、5 个买家类型、最长 15 轮。
 - 通过最优停止 DP 和 12000 条 Markov 轨迹估计每类买家的停止时间似然。
@@ -138,7 +162,7 @@ IS 训练集合让所有质量都可达，用于拟合论文式价格；OOS 轨�
 
 每轮先根据该批停止时间做 Bayes 更新，再用学习率把后验平滑进当前先验。评价使用真实先验到估计先验的 KL 散度。
 
-### 6.2 怎样区分速度和稳定性
+### 5.2 怎样区分速度和稳定性
 
 - `final_kl`：第 1000 轮误差；越小越好。
 - `tail_mean_kl`：最后 100 轮的平均误差；避免只看偶然的最后一点。
@@ -152,7 +176,7 @@ IS 训练集合让所有质量都可达，用于拟合论文式价格；OOS 轨�
 - `results/tables/rq3_paper_summary.csv`：分组统计；
 - `results/figures/rq3_paper_reproduction.pdf`：KL 曲线与最终 KL 图。
 
-## 7. 结果不一致时怎样排查
+## 6. 结果不一致时怎样排查
 
 1. 先运行 `make test`；若缺少 `highspy`，三个 MILP 测试会跳过，此时 RQ2 的连续 MILP 不能完整核验。
 2. 确认使用 `environment.yml` 对应环境，而不是系统 Python。
@@ -160,6 +184,6 @@ IS 训练集合让所有质量都可达，用于拟合论文式价格；OOS 轨�
 4. 查看 JSON 顶层参数，确认本次实验规模与报告一致。
 5. 图的字体或抗锯齿可能因系统不同而略有差异；CSV/JSON 数值才是核验依据。
 
-## 8. 当前不继续扩展的实验
+## 7. 当前不继续扩展的实验
 
 IR-aware、鲁棒 IR、连续 MILP 与估值网格差异，以及较大 MILP 的 60 秒求解间隙都保留在 `results/summary.json`、`results/tables/pricing_results.csv` 和报告补充章节中。它们用于说明机制边界，不属于当前 RQ1/RQ2/RQ3 复现主线。本阶段不继续增加求解器调参、更多鲁棒模型或转移误差消融。

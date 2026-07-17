@@ -31,7 +31,7 @@
 \title{机器学习数据获取与数据定价\\
 \large 《Optimal Pricing for Data-Augmented AutoML Marketplaces》讲解与实验复现}
 \author{课程大作业 C.3}
-\date{2026年7月16日\quad 版本 0.4.1}
+\date{2026年7月17日\quad 版本 0.5.0}
 
 \begin{document}
 \maketitle
@@ -260,9 +260,11 @@ $1/2$ & $0.00519\pm0.00166$ & 0.00353\\
 
 \section{复现实验协议与运行证据}
 
-完整复现使用 \texttt{environment.yml} 中的 Conda 环境。当前机器也可直接执行：
+完整复现使用 \texttt{environment.yml} 中的 Conda 环境。激活后运行：
+
 \begin{lstlisting}[language=bash]
-make all PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
+conda activate automl-market
+make all
 \end{lstlisting}
 该目标依次运行 14 项测试、补充定价实验、RQ1、RQ2/RQ3，并重新编译报告与展示。最近一次完整运行的关键终端结果为：14 项测试全部通过；RQ1 完成 60 个重复任务；RQ2 完成 10 个随机任务；RQ3 完成 5 个种子的全部组合；XeLaTeX 成功生成本文和 18 页展示。所有图均由同一命令生成，而不是手工录入。
 

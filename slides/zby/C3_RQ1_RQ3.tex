@@ -1,0 +1,37 @@
+% !TeX program = xelatex
+% Standalone preview for the RQ1/RQ3 segment; style matches C3_Paper_Theory.tex.
+\PassOptionsToPackage{quiet}{fontspec}
+\PassOptionsToPackage{dvipsnames}{xcolor}
+\PassOptionsToPackage{fontset=fandol}{ctex}
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usepackage{zju_beamer}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{mathtools}
+
+\graphicspath{{./figures/}{../../results/figures/}{../../docs/assets/}}
+\zjusectioncolor{blue}
+\setbeamertemplate{navigation symbols}{}
+
+\definecolor{ZJUBlue}{RGB}{0,63,136}
+\definecolor{ZJULight}{RGB}{236,244,252}
+\definecolor{ZJUGreen}{RGB}{0,125,117}
+\definecolor{WarmGray}{RGB}{90,90,90}
+\newcommand{\key}[1]{\textcolor{ZJUBlue}{\textbf{#1}}}
+\newcommand{\good}[1]{\textcolor{ZJUGreen}{\textbf{#1}}}
+
+\title[C3：RQ1 与 RQ3]{数据增强 AutoML 市场：RQ1 与 RQ3}
+\subtitle{发现算法与先验学习的论文实验及缩减复现}
+\author[RQ1/RQ3 实验复现]{课程大作业 C.3 · RQ1/RQ3 实验复现部分}
+\institute[数据要素市场]{数据要素市场课程 · 中期答辩\\参考论文：\textit{Optimal Pricing for Data-Augmented AutoML Marketplaces}}
+\date{2026 年 7 月 18 日}
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\input{../rq1_rq3_slides.tex}
+\end{document}

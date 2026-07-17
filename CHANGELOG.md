@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - 2026-07-17
+
+- 新增 13 页 `docs/rq1_rq3_handout.pdf`，详细解释 RQ1/Algorithm 2 与 RQ3/Algorithm 1，包括原论文实验、缩减复现、指标、讲述稿和问答。
+- 纳入 ZBY 使用的修改版 ZJU Beamer 模板和源码，新增 14 页同风格 `slides/rq1_rq3_presentation.pdf`；前 11 页为正式汇报，后 3 页为备查。
+- 新增可并入 ZBY 主文件的 `slides/rq1_rq3_slides.tex`、独立编译入口和 7--8 分钟逐页讲稿。
+- 从本地论文提取 Figure 3/5 图像用于原文与复现对照；修正 RQ3 尾部平均 KL 数字，并保持不可逐点复现的诚实边界。
+- 新增 `make rq-handout` 与 `make rq-slides`，同时将环境说明改为可移植的 Conda 命令。
+
 ## 0.4.1 - 2026-07-16
 
 - 新增 `docs/reproduction_guide.md`，逐项对应论文 RQ1/RQ2/RQ3 与本项目的替代设置、命令、指标、原始表格和预期结论。

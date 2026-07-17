@@ -214,10 +214,11 @@ make paper-experiments
 make report
 ```
 
-已有环境也可以直接指定解释器：
+环境已配好，激活后直接运行完整复现：
 
 ```bash
-make paper-experiments PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
+conda activate automl-market
+make all
 ```
 
 主要结果位于：

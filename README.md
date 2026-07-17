@@ -14,58 +14,74 @@
 - RQ2：IS/OOS、多随机任务、论文强制购买指标和自愿购买实现指标；
 - 补充记录：外部选项（IR）、鲁棒 IR、有限价格上界和连续 MILP/估值网格差异。
 
-## Conda 环境
+## 环境搭建与运行
 
-推荐使用 Conda，因为论文定价复现的可选 MILP 后端依赖 `highspy`：
+下面从一个刚 clone 完项目的干净环境开始，一步步走到完整复现。
+
+### 1. 准备 Python 环境
+
+项目需要 Python 3.10+。推荐使用 Conda（论文定价复现的 MILP 后端依赖 `highspy`，Conda 安装最省事）：
 
 ```bash
 conda env create -f environment.yml
+```
+
+这会创建一个名为 `automl-market` 的环境，包含 NumPy、Matplotlib、HiGHS 等全部依赖。
+
+如果不用 Conda，也可以 pip 安装：
+
+```bash
+pip install -r requirements.txt
+# MILP 可选，没有 highspy 时相关单元测试会自动跳过
+pip install -r requirements-milp.txt
+```
+
+### 2. 激活环境并跑通测试
+
+```bash
 conda activate automl-market
-```
-
-当前机器已创建环境，也可以直接使用解释器：
-
-```bash
-PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
-```
-
-基础代码只依赖 NumPy 和 Matplotlib；没有安装 `highspy` 时，三个 MILP 单元测试会被跳过，其他测试仍可运行。
-
-## 运行方式
-
-```bash
 make test
-make rq1
-make paper-experiments
-make report
 ```
 
-若未激活环境：
+看到 14 项测试全部通过（或 11 项通过 + 3 项 MILP 跳过）就说明环境正确。
 
-```bash
-make all PYTHON=/home/rander/miniforge3/envs/automl-market/bin/python
-```
+### 3. 快速试跑（可选）
 
-各目标含义：
-
-- `make experiment`：原有小型定价、IR/鲁棒 IR 和先验学习记录；
-- `make rq1`：60 个公开数据重复任务；
-- `make paper-experiments`：10 个 RQ2 任务与 5 种先验、3 种学习率的 RQ3；
-- `make report`：先刷新全部实验，再生成中文 PDF；
-- `make slides`：生成已有的中期展示；
-- `make all`：测试、报告和展示。
-
-随机种子固定，XeLaTeX 构建使用固定 `SOURCE_DATE_EPOCH`。
-
-第一次理解代码时，可以先运行缩小次数的教学版本；它只验证端到端数据流，不替代报告中的完整统计：
+在跑完整实验之前，可以先用缩小参数跑一遍，确认端到端数据流没问题：
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
   python scripts/run_rq1.py --output /tmp/automl-market-demo \
   --repeats-per-color 1 --budget 12
+
 MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
   python scripts/run_paper_experiments.py --output /tmp/automl-market-demo \
   --rq2-repeats 2 --rq3-seeds 1 --rq3-rounds 100
+```
+
+终端打印 `Completed RQ1 ...` 和 `Completed RQ2 ... and RQ3 ...` 即成功。
+
+### 4. 完整复现
+
+```bash
+make rq1                # RQ1：60 个公开数据重复任务
+make paper-experiments  # RQ2/RQ3：10 个定价任务 + 先验学习
+make report             # 编译中文 PDF 报告（依赖前面实验的 JSON/CSV）
+make slides             # 编译中期展示 PDF
+```
+
+或者一键全跑：
+
+```bash
+make all
+```
+
+执行顺序：测试 → 补充实验 → RQ1 → RQ2/RQ3 → 中文报告 → 展示。随机种子已固定，同一软件环境下每次跑出来的 CSV/JSON 和图完全一致。
+
+如果不想一直激活 Conda 环境，也可以临时用 `conda run`：
+
+```bash
+conda run -n automl-market make all
 ```
 
 ## 主要输出
@@ -78,6 +94,23 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 - `results/figures/rq*_*.pdf|png`：报告图；
 - `report/main.pdf`：中文复现报告；
 - `slides/midterm.pdf`：已有中期展示和 `slides/speaker_notes.md` 讲稿。
+
+## RQ1 / RQ3 中期汇报材料
+
+负责 RQ1 与 RQ3 的同学可直接使用：
+
+- `docs/rq1_rq3_handout.pdf`：13 页详细中文讲义，覆盖研究问题、Algorithm 1/2、原论文实验、缩减复现、讲述稿和问答；
+- `slides/rq1_rq3_presentation.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，前 11 页为正式汇报，后 3 页为备查；
+- `slides/rq1_rq3_slides.tex`：可插入 ZBY 主文件的 frame 源码；
+- `slides/zby/C3_RQ1_RQ3.tex`：同风格独立预览入口；
+- `slides/rq1_rq3_speaker_notes.md`：约 7--8 分钟逐页讲稿。
+
+重新编译：
+
+```bash
+make rq-handout
+make rq-slides
+```
 
 ## 当前核心结果
 

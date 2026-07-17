@@ -21,3 +21,17 @@ slides/*.synctex.gz
 slides/*.toc
 slides/*.vrb
 slides/*.xdv
+# RQ1/RQ3 handout LaTeX auxiliaries
+docs/*.aux
+docs/*.fdb_latexmk
+docs/*.fls
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.xdv
+# ZBY standalone build directory (final PDFs are copied to slides/)
+slides/zby/build/
+# Legacy local preview; canonical artifact is rq1_rq3_presentation.pdf
+slides/rq1_rq3_preview.pdf
+
+.DS_Store
