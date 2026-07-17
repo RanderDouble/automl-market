@@ -148,10 +148,12 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
 \small
 \begin{itemize}
   \item 60 次预算终点仍是 Data-All 略高，差距 0.0012--0.0015
-  \item Bandit 与 Data-Alt 的 AUC 区间跨 0，只能说表现相当
+\item Bandit 与 Data-Alt 的 AUC 区间跨 0，只能说表现相当
 \end{itemize}
 \end{alertblock}
 \end{columns}
+\vspace{0.2em}
+{\scriptsize 数据落盘：\texttt{results/tables/rq1\_task\_results.csv}、\texttt{rq1\_paired\_comparisons.csv}、\texttt{results/rq1\_summary.json}。}
 \end{frame}
 
 \section{RQ3：先验学习}
@@ -225,9 +227,9 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
 \begin{itemize}
   \item 10 个质量状态、最长 15 轮
   \item 转移：52\% 停留、34\% 升一级、14\% 升两级
-  \item 12000 条 Markov 轨迹
+  \item 精确前向 DP 计算停止似然（不再使用 Monte Carlo 估计）
   \item 五类估值 + 发现成本 0.018
-  \item 最优停止 DP 生成停止轮次频率
+  \item 精确前向传播生成停止轮次分布
 \end{itemize}
 \end{block}
 \column{0.49\textwidth}
@@ -255,9 +257,9 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
 \begin{exampleblock}{随机先验、批量 100}
 \small
 \begin{itemize}
-  \item 最终 KL（$1/(t+1),1/\sqrt t,1/2$）：0.03752、0.00684、0.00519
-  \item $1/2$ 最快，但尾部波动 0.00353
-  \item $1/\sqrt t$ 的尾部波动仅 0.00019
+  \item 最终 KL（$1/(t+1),1/\sqrt t,1/2$）：0.05185、0.00798、0.00702
+  \item $1/2$ 最快，但尾部波动 0.00358
+  \item $1/\sqrt t$ 的尾部波动仅 0.00032
 \end{itemize}
 \end{exampleblock}
 \column{0.50\textwidth}
@@ -267,10 +269,12 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
   \item $1/(t+1)$：最稳，但过早变得保守
   \item $1/2$：快，但持续受批次噪声影响
   \item $1/\sqrt t$：速度--稳定性折中
-  \item 批量 10 + 常数率时明显失稳
+\item 批量 10 + 常数率时明显失稳
 \end{itemize}
 \end{alertblock}
 \end{columns}
+\vspace{0.2em}
+{\scriptsize 数据落盘：\texttt{results/tables/rq3\_paper\_reproduction.csv}、\texttt{rq3\_paper\_summary.csv}、\texttt{results/paper\_experiments\_summary.json}；图由 \texttt{results/figures/rq3\_paper\_reproduction.pdf} 生成。}
 \end{frame}
 
 \begin{frame}{RQ1 与 RQ3：结论和可声称边界}
@@ -353,9 +357,9 @@ AUC 显著更高不等于最终性能显著更高；“更快接近最优”和�
 \toprule
 学习率 & 最终 KL & 尾部平均 KL & 尾部标准差\\
 \midrule
-$1/(t+1)$ & $0.03752\pm0.01698$ & 0.03765 & \textbf{0.00008}\\
-$1/\sqrt t$ & $0.00684\pm0.00444$ & 0.00695 & 0.00019\\
-$1/2$ & \textbf{$0.00519\pm0.00166$} & \textbf{0.00545} & 0.00353\\
+$1/(t+1)$ & $0.05185\pm0.01235$ & 0.05214 & \textbf{0.00019}\\
+$1/\sqrt t$ & $0.00798\pm0.00316$ & 0.00834 & 0.00032\\
+$1/2$ & \textbf{$0.00702\pm0.00266$} & \textbf{0.00716} & 0.00358\\
 \bottomrule
 \end{tabular}
 \end{table}

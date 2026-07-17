@@ -32,7 +32,7 @@ DP 状态记录三个量：历史净价值最佳质量、当前 Markov 质量和
 
 ## 8. 已实现内容（45 秒）
 
-项目已经实现停止 DP、Markov 支付、连续价格 HiGHS MILP、Independent/Shift/Jiggle、三类学习率和四种 RQ1 方法。RQ1 有 60 个公开数据任务，RQ2 有 10 个随机任务，RQ3 覆盖 5 种先验、3 种学习率和 5 个种子。结果都写入 CSV/JSON，并由 14 项测试覆盖。
+项目已经实现停止 DP、精确停止似然前向传播、Markov 支付、连续价格 HiGHS MILP、Independent/Shift/Jiggle、三类学习率和四种 RQ1 方法。RQ1 有 60 个公开数据任务，RQ2 有 10 个随机任务，RQ3 覆盖 5 种先验、3 种学习率和 5 个种子。结果都写入 CSV/JSON，并由 15 项测试覆盖。
 
 ## 9. RQ1（65 秒）
 

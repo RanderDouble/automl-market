@@ -12,7 +12,7 @@ import numpy as np
 
 from .experiments import synthetic_instance
 from .learning import smoothed_bayesian_learning
-from .market import optimal_stopping_dp, simulate_markov_trajectories, stopping_time_for_trajectory
+from .market import stopping_distribution_dp
 from .milp import solve_pricing_milp
 from .pricing import (
     expected_revenue,
@@ -142,7 +142,7 @@ def run_rq3_reproduction(seeds: int, rounds: int, seed: int) -> dict[str, object
     selected_curves: dict[str, list[np.ndarray]] = defaultdict(list)
     for seed_offset in range(seeds):
         rng = np.random.default_rng(seed + seed_offset)
-        likelihoods = _rq3_likelihoods(rng)
+        likelihoods = _rq3_likelihoods()
         priors = _rq3_priors(rng)
         for prior_name, prior in priors.items():
             for rate_name, rate in (("1/(t+1)", "harmonic"), ("1/sqrt(t)", "sqrt"), ("1/2", 0.5)):
@@ -226,7 +226,7 @@ def _expected_welfare(
     return float(np.asarray(prior) @ by_type)
 
 
-def _rq3_likelihoods(rng: np.random.Generator) -> np.ndarray:
+def _rq3_likelihoods() -> np.ndarray:
     qualities = np.linspace(0.1, 1.0, 10)
     # Calibrated to produce five distinct stopping distributions (mean stopping
     # rounds are approximately 1.0, 4.0, 7.2, 10.2, and 12.6).  This makes the
@@ -243,21 +243,16 @@ def _rq3_likelihoods(rng: np.random.Generator) -> np.ndarray:
         transition[quality, min(quality + 1, 9)] += 0.34
         transition[quality, min(quality + 2, 9)] += 0.14
     horizon = 15
-    paths = simulate_markov_trajectories(initial, transition, horizon, 12_000, rng)
     likelihoods = np.zeros((len(values), horizon))
     for type_id, type_values in enumerate(values):
-        _, policy = optimal_stopping_dp(
+        likelihoods[type_id] = stopping_distribution_dp(
             type_values,
             np.zeros(10),
+            initial,
             transition,
             horizon,
             discovery_cost=0.018,
         )
-        stops = [
-            stopping_time_for_trajectory(path, type_values, np.zeros(10), policy)
-            for path in paths
-        ]
-        likelihoods[type_id] = np.bincount(stops, minlength=horizon + 1)[1:] / len(stops)
     return likelihoods
 
 

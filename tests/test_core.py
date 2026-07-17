@@ -10,7 +10,13 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from automl_market.market import expected_payment_dp, optimal_stopping_dp, simulate_markov_trajectories
+from automl_market.market import (
+    expected_payment_dp,
+    optimal_stopping_dp,
+    simulate_markov_trajectories,
+    stopping_distribution_dp,
+    stopping_time_for_trajectory,
+)
 from automl_market.learning import smoothed_bayesian_learning
 from automl_market.milp import solve_pricing_milp
 from automl_market.pricing import (
@@ -64,6 +70,25 @@ class MarketTests(unittest.TestCase):
             allow_no_purchase=True,
         )
         self.assertAlmostEqual(no_sale, 0.0)
+
+    def test_exact_stopping_distribution_matches_deterministic_path_case(self) -> None:
+        initial = np.array([1.0, 0.0])
+        transition = np.array([[0.0, 1.0], [0.0, 1.0]])
+        valuations = np.array([0.1, 1.0])
+        prices = np.zeros(2)
+        distribution = stopping_distribution_dp(
+            valuations,
+            prices,
+            initial,
+            transition,
+            horizon=2,
+            discovery_cost=0.1,
+        )
+        np.testing.assert_allclose(distribution, np.array([0.0, 1.0]))
+        _, policy = optimal_stopping_dp(
+            valuations, prices, transition, horizon=2, discovery_cost=0.1
+        )
+        self.assertEqual(stopping_time_for_trajectory(np.array([0, 1]), valuations, prices, policy), 2)
 
     def test_outside_option_removes_unrealizable_revenue(self) -> None:
         valuations = np.array([[1.0, 1.2], [0.2, 0.3]])
