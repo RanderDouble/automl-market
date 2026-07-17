@@ -22,8 +22,16 @@
 \newcommand{\key}[1]{\textcolor{ZJUBlue}{\textbf{#1}}}
 \newcommand{\good}[1]{\textcolor{ZJUGreen}{\textbf{#1}}}
 
-\title[C3：RQ1 与 RQ3]{数据增强 AutoML 市场：RQ1 与 RQ3}
-\subtitle{发现算法与先验学习的论文实验及缩减复现}
+\ifdefined\showrqone
+  \title[C3：RQ1]{数据增强 AutoML 市场：RQ1}
+  \subtitle{增强--模型发现的论文实验及缩减复现}
+\else\ifdefined\showrqthree
+  \title[C3：RQ3]{数据增强 AutoML 市场：RQ3}
+  \subtitle{先验学习的论文实验及缩减复现}
+\else
+  \title[C3：RQ1 与 RQ3]{数据增强 AutoML 市场：RQ1 与 RQ3}
+  \subtitle{发现算法与先验学习的论文实验及缩减复现}
+\fi\fi
 \author[RQ1/RQ3 实验复现]{课程大作业 C.3 · RQ1/RQ3 实验复现部分}
 \institute[数据要素市场]{数据要素市场课程 · 中期答辩\\参考论文：\textit{Optimal Pricing for Data-Augmented AutoML Marketplaces}}
 \date{2026 年 7 月 18 日}
@@ -33,5 +41,13 @@
   \titlepage
 \end{frame}
 
+% No switch means the combined deck; focused wrappers predefine one switch.
+\ifdefined\showrqone\else
+  \ifdefined\showrqthree\else
+    \def\showrqone{}
+    \def\showrqthree{}
+    \def\showall{}
+  \fi
+\fi
 \input{../rq1_rq3/frames.tex}
 \end{document}

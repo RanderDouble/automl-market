@@ -5,7 +5,7 @@ LATEX_BUILD_ROOT ?= /tmp/automl-market-latex
 DELIVERABLE_DIR := deliverables
 
 .PHONY: test experiment rq1 paper-experiments paper-summary report slides \
-	rq-handout rq-slides zby-slides deliverables all clean
+	rq-handout rq-slides rq1-slides rq3-slides zby-slides deliverables all clean
 
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
@@ -71,3 +71,15 @@ clean:
 	rm -rf $(LATEX_BUILD_ROOT)
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache
+
+rq1-slides:
+	mkdir -p $(LATEX_BUILD_ROOT)/rq1-slides $(DELIVERABLE_DIR)
+	cd slides/zby && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
+		-output-directory=$(LATEX_BUILD_ROOT)/rq1-slides ../rq1_rq3/rq1_main.tex
+	cp $(LATEX_BUILD_ROOT)/rq1-slides/rq1_main.pdf $(DELIVERABLE_DIR)/rq1_slides.pdf
+
+rq3-slides:
+	mkdir -p $(LATEX_BUILD_ROOT)/rq3-slides $(DELIVERABLE_DIR)
+	cd slides/zby && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
+		-output-directory=$(LATEX_BUILD_ROOT)/rq3-slides ../rq1_rq3/rq3_main.tex
+	cp $(LATEX_BUILD_ROOT)/rq3-slides/rq3_main.pdf $(DELIVERABLE_DIR)/rq3_slides.pdf

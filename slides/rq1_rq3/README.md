@@ -3,7 +3,8 @@
 本目录只存放当前同学负责的 RQ1/RQ3 内容，与 `slides/zby/` 的 ZBY 原始材料分开：
 
 - `main.tex`：使用 ZBY Beamer 风格的独立编译入口；
-- `frames.tex`：13 个可合并 frame，前 10 个为正式内容，后 3 个为备查；
+- `rq1_main.tex`、`rq3_main.tex`：分别生成 RQ1、RQ3 独立汇报版；
+- `frames.tex`：16 个可合并 frame，按 RQ1、RQ3 分组；每个 RQ 依次包含研究问题、算法、原文实验设计与结果、复现实验设计与结果，末尾附 3 个备查 frame；
 - `speaker_notes.md`：约 7--8 分钟逐页讲稿。
 
 在项目根目录编译：
@@ -12,7 +13,7 @@
 make rq-slides
 ```
 
-中间文件写入 `/tmp/automl-market-latex/rq-slides`，最终文件为 `deliverables/rq1_rq3_slides.pdf`。
+中间文件写入 `/tmp/automl-market-latex/rq-slides`、`rq1-slides` 和 `rq3-slides`；最终文件为 `deliverables/rq1_rq3_slides.pdf`、`deliverables/rq1_slides.pdf` 和 `deliverables/rq3_slides.pdf`。
 
 若要并入 ZBY 的 `C3_Paper_Theory.tex`，其导言区图片路径应包含：
 

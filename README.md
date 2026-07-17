@@ -122,7 +122,8 @@ automl-market/
 负责 RQ1 与 RQ3 的同学可直接使用：
 
 - `deliverables/rq1_rq3_handout.pdf`：13 页详细中文讲义，覆盖研究问题、Algorithm 1/2、原论文实验、缩减复现、讲述稿和问答；
-- `deliverables/rq1_rq3_slides.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，前 11 页为正式汇报，后 3 页为备查；
+- `deliverables/rq1_rq3_slides.pdf`：采用 ZBY 的修改版 ZJU Beamer 风格，共 17 页；前 14 页为标题、RQ1/RQ3 正式内容与结论，后 3 页为备查；
+- `deliverables/rq1_slides.pdf`、`deliverables/rq3_slides.pdf`：分别提取 RQ1 和 RQ3 的 7 页独立汇报版；
 - `slides/rq1_rq3/frames.tex`：可插入 ZBY 主文件的 frame 源码；
 - `slides/rq1_rq3/main.tex`：同风格独立编译入口；
 - `slides/rq1_rq3/speaker_notes.md`：约 7--8 分钟逐页讲稿。
@@ -132,6 +133,7 @@ automl-market/
 ```bash
 make rq-handout
 make rq-slides
+make rq1-slides rq3-slides
 ```
 
 两条命令只在 `/tmp` 产生中间文件，并分别更新 `deliverables/rq1_rq3_handout.pdf` 和 `deliverables/rq1_rq3_slides.pdf`。
