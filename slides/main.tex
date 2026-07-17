@@ -399,40 +399,18 @@ Data-All 在一个增强上训练全部 $|\mathcal M|$ 个模型；Data-Bandit �
 \centering
 \includegraphics[width=\linewidth]{paper_rq1_figure3.png}
 \vspace{0.2em}
-{\scriptsize 原文 Figure 3；横轴为搜索时间，纵轴为效用。}
 \end{columns}
-\end{frame}
-
-\begin{frame}{RQ1：原文实验结果}
-\begin{columns}[T,onlytextwidth]
-\column{0.48\textwidth}
-\begin{exampleblock}{分类任务}
-\begin{itemize}
-  \item Data-Bandit 平均效用超过 $0.85$
-  \item 次优方法平均效用略高于 $0.70$
-  \item AutoML 约为 $0.55$
-\end{itemize}
-\end{exampleblock}
-\column{0.48\textwidth}
-\begin{exampleblock}{回归任务}
-\begin{itemize}
-  \item Data-Bandit 在固定时间点均高于基线
-  \item 多数任务识别出的增强数少于 10
-  \item 结论：更高的有限时间发现效率
-\end{itemize}
-\end{exampleblock}
-\end{columns}
-\begin{alertblock}{原文结论}
+\begin{alertblock}{结论}
 Data-Bandit 在相同搜索时间下更快获得高质量增强--模型组合。
 \end{alertblock}
 \end{frame}
 
 \begin{frame}{RQ1：复现实验设计}
 \begin{columns}[T,onlytextwidth]
-\column{0.48\textwidth}
+\column{0.45\textwidth}
 \begin{block}{数据与搜索空间}
 \begin{itemize}
-  \item 红/白葡萄酒，分类与回归各 30 个任务
+  \item UCI Wine Quality 数据，分类与回归各 30 个任务
   \item 2 个基础特征 + 9 个外部增强
   \item 6 个自包含模型族
   \item 每种方法最多 60 次模型训练
@@ -458,7 +436,7 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
 \includegraphics[width=0.86\linewidth]{rq1_discovery.pdf}
 \vspace{-0.35em}
 \begin{columns}[T,onlytextwidth]
-\column{0.48\textwidth}
+\column{0.45\textwidth}
 \begin{exampleblock}{发现结果}
 \small
 \begin{itemize}
@@ -477,7 +455,6 @@ NYC 数据池、Metam 配置和完整代码未公开；这里复现\textbf{预�
 \end{alertblock}
 \end{columns}
 \vspace{0.2em}
-{\scriptsize 数据落盘：\texttt{results/tables/rq1\_task\_results.csv}、\texttt{rq1\_paired\_comparisons.csv}、\texttt{results/rq1\_summary.json}。}
 \end{frame}
 
 % ============================== RQ3 ==============================
