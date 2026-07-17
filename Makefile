@@ -5,8 +5,7 @@ LATEX_BUILD_ROOT ?= /tmp/automl-market-latex
 DELIVERABLE_DIR := deliverables
 
 .PHONY: test experiment rq1 paper-experiments paper-summary report slides project-slides \
-	rq-handout rq-slides rqslides rq1-slides rq1slides rq3-slides rq3slides \
-	zby-slides deliverables all clean
+	rq-handout rq-slides zby-slides deliverables all clean
 
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
@@ -61,8 +60,6 @@ rq-slides:
 		-output-directory=$(LATEX_BUILD_ROOT)/rq-slides main.tex
 	cp $(LATEX_BUILD_ROOT)/rq-slides/main.pdf $(DELIVERABLE_DIR)/rq1_rq3_slides.pdf
 
-# Aliases without hyphens, for convenience.
-rqslides: rq-slides
 
 zby-slides:
 	mkdir -p $(LATEX_BUILD_ROOT)/zby-slides $(DELIVERABLE_DIR)
@@ -79,19 +76,3 @@ clean:
 	rm -rf $(LATEX_BUILD_ROOT)
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache
-
-rq1-slides:
-	mkdir -p $(LATEX_BUILD_ROOT)/rq1-slides $(DELIVERABLE_DIR)
-	cd slides/rq1_rq3 && TEXINPUTS=../zby: latexmk -g -xelatex -interaction=nonstopmode -halt-on-error \
-		-output-directory=$(LATEX_BUILD_ROOT)/rq1-slides rq1_main.tex
-	cp $(LATEX_BUILD_ROOT)/rq1-slides/rq1_main.pdf $(DELIVERABLE_DIR)/rq1_slides.pdf
-
-rq1slides: rq1-slides
-
-rq3-slides:
-	mkdir -p $(LATEX_BUILD_ROOT)/rq3-slides $(DELIVERABLE_DIR)
-	cd slides/rq1_rq3 && TEXINPUTS=../zby: latexmk -g -xelatex -interaction=nonstopmode -halt-on-error \
-		-output-directory=$(LATEX_BUILD_ROOT)/rq3-slides rq3_main.tex
-	cp $(LATEX_BUILD_ROOT)/rq3-slides/rq3_main.pdf $(DELIVERABLE_DIR)/rq3_slides.pdf
-
-rq3slides: rq3-slides
