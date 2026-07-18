@@ -66,8 +66,9 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 ```bash
 make rq1                # RQ1：60 个公开数据重复任务
 make paper-experiments  # RQ2/RQ3：10 个定价任务 + 先验学习
-make report             # 编译中文 PDF 报告（依赖前面实验的 JSON/CSV）
-make slides             # 编译中期展示 PDF
+make results            # 重新生成全部实验结果
+make report             # 使用现有结果编译中文 PDF 报告
+make slides             # 仅使用现有图表编译展示 PDF
 ```
 
 或者一键全跑：

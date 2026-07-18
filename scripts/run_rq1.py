@@ -191,8 +191,9 @@ def _plot(
     }
     # The main RQ1 figure focuses on the informative early budget.  The
     # supplementary oracle-efficiency panel is intentionally omitted.
-    display_budget = min(30, budget)
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.0), sharey=True)
+    display_budget = min(10, budget)
+    # 分类与回归的效用量级不同，分别缩放纵轴，避免曲线挤在一起。
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3), sharey=False)
     x = np.arange(1, display_budget + 1)
     for axis, task in zip(axes, ("classification", "regression")):
         for method, task_curves in curves[task].items():
@@ -207,8 +208,11 @@ def _plot(
         )
         axis.grid(alpha=0.25)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 1.04))
-    fig.tight_layout()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 1))
+    # Keep label fonts unchanged while making each plotting area denser.
+    # The unused margins are intentional: they reduce the physical distance
+    # between x-axis coordinates without scaling down the labels.
+    fig.subplots_adjust(left=0.19, right=0.81, bottom=0.28, top=0.78, wspace=0.2)
     fig.savefig(pdf, bbox_inches="tight")
     fig.savefig(png, dpi=180, bbox_inches="tight")
     plt.close(fig)

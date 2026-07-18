@@ -4,7 +4,7 @@ export SOURCE_DATE_EPOCH := 1784131200
 LATEX_BUILD_ROOT ?= /tmp/automl-market-latex
 DELIVERABLE_DIR := deliverables
 
-.PHONY: test experiment rq1 paper-experiments report slides \
+.PHONY: test experiment rq1 paper-experiments results report slides \
 	rq-handout deliverables all clean
 
 test:
@@ -19,13 +19,15 @@ rq1:
 paper-experiments:
 	MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src $(PYTHON) scripts/run_paper_experiments.py
 
-report: experiment rq1 paper-experiments
+results: experiment rq1 paper-experiments
+
+report:
 	mkdir -p $(LATEX_BUILD_ROOT)/report $(DELIVERABLE_DIR)
 	cd report && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
 		-output-directory=$(LATEX_BUILD_ROOT)/report main.tex
 	cp $(LATEX_BUILD_ROOT)/report/main.pdf $(DELIVERABLE_DIR)/final_report.pdf
 
-slides: experiment rq1 paper-experiments
+slides:
 	mkdir -p $(LATEX_BUILD_ROOT)/slides $(DELIVERABLE_DIR)
 	cd slides && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
 		-output-directory=$(LATEX_BUILD_ROOT)/slides main.tex
@@ -40,7 +42,7 @@ rq-handout:
 
 deliverables: report slides rq-handout
 
-all: test deliverables
+all: test results deliverables
 
 clean:
 	rm -rf $(LATEX_BUILD_ROOT)

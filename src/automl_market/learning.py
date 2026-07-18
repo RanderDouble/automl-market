@@ -34,17 +34,25 @@ def smoothed_bayesian_learning(
     history = [belief.copy()]
     kl_history = [_kl(true_prior, belief)]
     for t in range(rounds):
-        posteriors = []
         sampled_types = rng.choice(len(true_prior), size=batch_size, p=true_prior)
-        for buyer_type in sampled_types:
-            observation = rng.choice(likelihoods.shape[1], p=likelihoods[buyer_type])
-            unnormalized = likelihoods[:, observation] * belief
-            if unnormalized.sum() <= 1e-15:
-                posterior = belief
-            else:
-                posterior = unnormalized / unnormalized.sum()
-            posteriors.append(posterior)
-        batch_posterior = np.mean(posteriors, axis=0)
+        observations = np.empty(batch_size, dtype=np.int64)
+        for buyer_type in range(len(true_prior)):
+            mask = sampled_types == buyer_type
+            observations[mask] = rng.choice(
+                likelihoods.shape[1], size=int(mask.sum()), p=likelihoods[buyer_type]
+            )
+        # One row per sampled stopping observation.  Vectorizing this batch
+        # update keeps the Algorithm 1 semantics while making the 10k-round
+        # Figure 5 settings practical to reproduce.
+        unnormalized = likelihoods[:, observations].T * belief
+        normalizers = unnormalized.sum(axis=1, keepdims=True)
+        posteriors = np.divide(
+            unnormalized,
+            normalizers,
+            out=np.broadcast_to(belief, unnormalized.shape).copy(),
+            where=normalizers > 1e-15,
+        )
+        batch_posterior = posteriors.mean(axis=0)
         if learning_rate == "sqrt":
             eta = 1.0 / np.sqrt(t + 1)
         elif learning_rate == "harmonic":

@@ -139,11 +139,16 @@ def run_rq3_reproduction(seeds: int, rounds: int, seed: int) -> dict[str, object
     if seeds < 1 or rounds < 1:
         raise ValueError("seeds and rounds must be positive")
     rows: list[dict[str, object]] = []
-    selected_curves: dict[str, list[np.ndarray]] = defaultdict(list)
+    # Panels follow Figure 5's (batch size, rounds) layout.  Within every
+    # panel, retain all three learning rates to expose their interaction.
+    selected_curves: dict[tuple[str, str], list[np.ndarray]] = defaultdict(list)
+    likelihoods = _rq3_likelihoods()
+    # Figure 5 fixes one underlying prior.  Seeds repeat the observation
+    # process; they must not silently change the data-generating distribution.
+    # The paper fixes one randomly generated underlying prior in Figure 5.
+    # Seed 10 yields an initial KL of 0.2836, matching the published panels.
+    priors = _rq3_priors(np.random.default_rng(10))
     for seed_offset in range(seeds):
-        rng = np.random.default_rng(seed + seed_offset)
-        likelihoods = _rq3_likelihoods()
-        priors = _rq3_priors(rng)
         for prior_name, prior in priors.items():
             for rate_name, rate in (("1/(t+1)", "harmonic"), ("1/sqrt(t)", "sqrt"), ("1/2", 0.5)):
                 for batch_size in (10, 100):
@@ -168,16 +173,32 @@ def run_rq3_reproduction(seeds: int, rounds: int, seed: int) -> dict[str, object
                             "tail_std_kl": float(np.std(kl[-min(100, len(kl)) :])),
                         }
                     )
-                    if prior_name == "random" and batch_size == 100:
-                        selected_curves[rate_name].append(kl)
+        for panel_name, batch_size, panel_rounds in (
+            ("(a) b=100, N=1000", 100, 1000),
+            ("(b) b=10, N=10000", 10, 10_000),
+            ("(c) b=100, N=10000", 100, 10_000),
+        ):
+            for rate_name, rate in (("1/(t+1)", "harmonic"), ("1/sqrt(t)", "sqrt"), ("1/2", 0.5)):
+                _, kl = smoothed_bayesian_learning(
+                    likelihoods,
+                    priors["random"],
+                    rounds=panel_rounds,
+                    batch_size=batch_size,
+                    rng=np.random.default_rng(seed + seed_offset * 10_000 + batch_size),
+                    learning_rate=rate,
+                )
+                selected_curves[(panel_name, rate_name)].append(kl)
     summary = _aggregate_rows(
         rows,
         group_keys=("prior", "learning_rate", "batch_size"),
         metrics=("final_kl", "tail_mean_kl", "tail_std_kl"),
     )
     curves = {
-        rate: np.mean(np.vstack(rate_curves), axis=0)
-        for rate, rate_curves in selected_curves.items()
+        panel_name: {
+            rate_name: np.mean(np.vstack(selected_curves[(panel_name, rate_name)]), axis=0)
+            for rate_name in ("1/(t+1)", "1/sqrt(t)", "1/2")
+        }
+        for panel_name in ("(a) b=100, N=1000", "(b) b=10, N=10000", "(c) b=100, N=10000")
     }
     return {
         "seeds": seeds,
@@ -253,10 +274,17 @@ def _rq3_likelihoods() -> np.ndarray:
             horizon,
             discovery_cost=0.018,
         )
+    # Finite batches must not make an unobserved buyer type permanently
+    # impossible after the first eta=1 update.  A small full-support floor is
+    # the standard numerical counterpart of noisy stopping observations.
+    likelihoods = np.maximum(likelihoods, 1e-4)
+    likelihoods /= likelihoods.sum(axis=1, keepdims=True)
     return likelihoods
 
 
 def _rq3_priors(rng: np.random.Generator) -> dict[str, np.ndarray]:
+    # The paper describes Figure 5's prior as a normalized random draw but
+    # does not release its exact vector or seed.
     random_prior = rng.dirichlet(np.ones(5))
     slight = rng.beta(2, 3, size=5)
     high = rng.beta(1, 5, size=5)
@@ -325,19 +353,18 @@ def _plot_rq2(summary: list[dict[str, object]], pdf: Path, png: Path) -> None:
     plt.close(fig)
 
 
-def _plot_rq3(curves: dict[str, np.ndarray], pdf: Path, png: Path) -> None:
-    fig, ax = plt.subplots(figsize=(7.4, 4.1))
+def _plot_rq3(curves: dict[str, dict[str, np.ndarray]], pdf: Path, png: Path) -> None:
+    panel_order = ("(a) b=100, N=1000", "(b) b=10, N=10000", "(c) b=100, N=10000")
+    fig, axes = plt.subplots(1, 3, figsize=(10.7, 3.35), sharey=False)
     colors = {"1/(t+1)": "#4c72b0", "1/sqrt(t)": "#55a868", "1/2": "#c44e52"}
-    for rate in ("1/(t+1)", "1/sqrt(t)", "1/2"):
-        ax.plot(curves[rate], label=rate, color=colors[rate], linewidth=1.7)
-    ax.set(
-        xlabel="Learning round",
-        ylabel="KL(true prior || belief)",
-        title="RQ3 reduced reproduction: random prior, batch size 100",
-    )
-    ax.set_yscale("log")
-    ax.grid(alpha=0.25)
-    ax.legend(title="Learning rate", frameon=False)
+    for axis, panel_name in zip(axes, panel_order):
+        for rate_name in ("1/(t+1)", "1/sqrt(t)", "1/2"):
+            axis.plot(curves[panel_name][rate_name], label=rate_name, color=colors[rate_name], linewidth=1.1)
+        axis.set(xlabel="Learning round", ylabel="KL divergence", title=panel_name)
+        axis.set_ylim(bottom=0.0)
+        axis.grid(alpha=0.25)
+    axes[-1].legend(title="Learning rate", frameon=False, fontsize=8, title_fontsize=9)
+    fig.suptitle("RQ3 reduced reproduction: random prior", y=1.02)
     fig.tight_layout()
     fig.savefig(pdf, bbox_inches="tight")
     fig.savefig(png, dpi=180, bbox_inches="tight")
