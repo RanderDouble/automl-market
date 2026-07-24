@@ -1,0 +1,6 @@
+method,final_test_utility,normalized_auc,calls_to_95pct_oracle_gain,first_four_call_mean
+Data-Bandit,0.746,0.694875,17,0.5415
+Data-All,0.596,0.5469999999999999,17,0.5015000000000001
+Data-Alt,0.8059999999999999,0.66775,12,0.5345
+AutoML,0.506,0.504875,17,0.5015000000000001
+Pricing-guided Data-Bandit,0.8059999999999999,0.75825,13,0.735

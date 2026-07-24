@@ -1,0 +1,5 @@
+scenario,description,prior,costs
+nominal,training prior used by the base pricing objective,0.100 0.140 0.190 0.220 0.200 0.150,0.00 0.03 0.08
+oos_prior,buyer mix shifted toward lower-valuation early stoppers,0.280 0.250 0.190 0.140 0.090 0.050,0.00 0.03 0.08
+uniform_prior,uninformative cold-start prior,0.167 0.167 0.167 0.167 0.167 0.167,0.00 0.03 0.08
+high_prior,buyer mix shifted toward higher-valuation patient buyers,0.050 0.090 0.140 0.190 0.250 0.280,0.00 0.03 0.08

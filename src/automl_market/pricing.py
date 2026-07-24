@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+MAX_BITMASK_QUALITIES = 60
+
 
 @dataclass(frozen=True)
 class PricingResult:
@@ -39,8 +41,7 @@ def revenue_by_type(
     # Revenue depends only on the set of qualities encountered, not their order.
     # Grouping equal availability masks makes exhaustive grid search fast while
     # preserving exactly the empirical objective in Eq. (7).
-    bit_masks = np.bitwise_or.reduce(1 << paths, axis=1)
-    masks, counts = np.unique(bit_masks, return_counts=True)
+    masks, counts = _availability_bit_masks(paths, prices.size)
     result = np.zeros(values.shape[0], dtype=float)
     for type_id, type_values in enumerate(values):
         total = 0.0
@@ -247,8 +248,7 @@ def _choice_probabilities(
     force_purchase: bool,
 ) -> np.ndarray:
     paths = np.asarray(trajectories, dtype=np.int64)
-    masks = np.bitwise_or.reduce(1 << paths, axis=1)
-    unique_masks, counts = np.unique(masks, return_counts=True)
+    unique_masks, counts = _availability_bit_masks(paths, len(prices))
     shares = np.zeros(len(prices), dtype=float)
     for type_id, type_values in enumerate(valuations):
         net = type_values - prices
@@ -262,3 +262,12 @@ def _choice_probabilities(
             selected = int(tied[np.argmax(prices[tied])])
             shares[selected] += prior[type_id] * count / len(paths)
     return shares
+
+
+def _availability_bit_masks(paths: np.ndarray, qualities: int) -> tuple[np.ndarray, np.ndarray]:
+    if qualities > MAX_BITMASK_QUALITIES:
+        raise ValueError(
+            f"bit-mask compression requires at most {MAX_BITMASK_QUALITIES} quality states"
+        )
+    bit_masks = np.bitwise_or.reduce(np.left_shift(np.int64(1), paths), axis=1)
+    return np.unique(bit_masks, return_counts=True)

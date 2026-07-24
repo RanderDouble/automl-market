@@ -1,0 +1,3 @@
+experiment,best_method,primary_metric,value
+pricing,Robust cost-aware Markov,markov_worst_prior_cost,0.18566079691522885
+discovery,Pricing-guided Data-Bandit,normalized_auc,0.75825

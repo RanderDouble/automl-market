@@ -144,16 +144,102 @@ def run_discovery_methods(
     budget: int,
     seed: int,
     gamma: float = 0.1,
+    price_signal: np.ndarray | None = None,
+    price_weight: float = 0.5,
 ) -> dict[str, np.ndarray]:
-    """Run Data-Bandit, Data-All, Data-Alt, and AutoML on one score table."""
+    """Run Data-Bandit, Data-All, Data-Alt, and AutoML on one score table.
+
+    When ``price_signal`` is provided, the result also includes
+    ``Pricing-guided Data-Bandit``.  The signal is an exogenous revenue-potential
+    score per augmentation, for example the expected payment attached to the
+    quality state that an augmentation is likely to unlock.
+    """
     if budget < 1:
         raise ValueError("budget must be positive")
-    return {
+    methods = {
         "Data-Bandit": _data_bandit(table, budget, seed, gamma),
         "Data-All": _data_all(table, budget),
         "Data-Alt": _data_alt(table, budget),
         "AutoML": _automl(table, budget),
     }
+    if price_signal is not None:
+        methods["Pricing-guided Data-Bandit"] = pricing_guided_discovery(
+            table,
+            budget,
+            seed,
+            price_signal,
+            gamma=gamma,
+            price_weight=price_weight,
+        )
+    return methods
+
+
+def pricing_guided_discovery(
+    table: ScoreTable,
+    budget: int,
+    seed: int,
+    price_signal: np.ndarray,
+    gamma: float = 0.1,
+    price_weight: float = 0.5,
+) -> np.ndarray:
+    """Run a Data-Bandit variant that prioritizes revenue-potential states.
+
+    The original Data-Bandit treats candidate augmentations uniformly except for
+    their order in the market.  This variant takes a platform-side price signal
+    per augmentation, visits high-potential augmentations first, and uses that
+    signal as a bounded bonus in the model-bandit update.  Incumbent reporting
+    still follows validation utility and test utility, preserving the RQ1 query
+    budget semantics.
+    """
+    if budget < 1:
+        raise ValueError("budget must be positive")
+    if not (0.0 <= gamma <= 1.0):
+        raise ValueError("gamma must be in [0, 1]")
+    if not (0.0 <= price_weight <= 1.0):
+        raise ValueError("price_weight must be in [0, 1]")
+
+    signal = _normalized_price_signal(price_signal, table.validation.shape[0])
+    rng = np.random.default_rng(seed)
+    q, finish, incumbent, curve = _curve_recorder(table, budget)
+    models = table.validation.shape[1]
+    weights = np.ones(models, dtype=float)
+    observed: list[tuple[float, int]] = []
+
+    # Stable sort keeps the original augmentation order when prices tie.
+    order = np.argsort(-signal, kind="stable")
+    for step in order:
+        if len(curve) >= budget:
+            return finish()
+        probabilities = (1.0 - gamma) * weights / weights.sum() + gamma / models
+        arm = int(rng.choice(models, p=probabilities))
+        validation_reward = q(int(step), arm)
+        guided_reward = (
+            (1.0 - price_weight) * _bounded_reward(validation_reward)
+            + price_weight * signal[int(step)]
+        )
+        observed.append((guided_reward, int(step)))
+        exponent = gamma * guided_reward / (models * probabilities[arm])
+        weights[arm] *= math.exp(min(exponent, 20.0))
+
+    top_t = max(1, math.ceil(math.log2(table.validation.shape[0])))
+    best_arm = int(np.argmax(weights))
+    for _, step in sorted(observed, reverse=True)[:top_t]:
+        if len(curve) >= budget:
+            return finish()
+        q(step, best_arm)
+
+    guided_step = max(observed, key=lambda item: item[0])[1]
+    for arm in range(models):
+        if len(curve) >= budget:
+            return finish()
+        q(guided_step, arm)
+
+    best_step, _ = incumbent()
+    for arm in range(models):
+        if len(curve) >= budget:
+            break
+        q(best_step, arm)
+    return finish()
 
 
 def calls_to_fraction(curve: np.ndarray, base: float, oracle: float, fraction: float = 0.95) -> int:
@@ -177,6 +263,23 @@ def paired_bootstrap_mean_ci(
     means = values[indices].mean(axis=1)
     low, high = np.quantile(means, [0.025, 0.975])
     return float(low), float(high)
+
+
+def _normalized_price_signal(price_signal: np.ndarray, augmentations: int) -> np.ndarray:
+    signal = np.asarray(price_signal, dtype=float)
+    if signal.shape != (augmentations,) or not np.all(np.isfinite(signal)):
+        raise ValueError("price_signal must contain one finite score per augmentation")
+    shifted = signal - float(np.min(signal))
+    scale = float(np.max(shifted))
+    if scale <= 1e-12:
+        return np.zeros_like(shifted)
+    return shifted / scale
+
+
+def _bounded_reward(value: float) -> float:
+    if not np.isfinite(value):
+        return 0.0
+    return float(np.clip(value, 0.0, 1.0))
 
 
 def _fit_predict_ridge_family(

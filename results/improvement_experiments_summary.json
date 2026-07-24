@@ -1,0 +1,246 @@
+{
+  "scope": "Supplemental mechanism improvements: IR-aware pricing, robust priors, nonzero search-cost-aware Markov pricing, and pricing-guided discovery.",
+  "prior_cost_scenarios": [
+    {
+      "scenario": "nominal",
+      "description": "training prior used by the base pricing objective",
+      "prior": "0.100 0.140 0.190 0.220 0.200 0.150",
+      "costs": "0.00 0.03 0.08"
+    },
+    {
+      "scenario": "oos_prior",
+      "description": "buyer mix shifted toward lower-valuation early stoppers",
+      "prior": "0.280 0.250 0.190 0.140 0.090 0.050",
+      "costs": "0.00 0.03 0.08"
+    },
+    {
+      "scenario": "uniform_prior",
+      "description": "uninformative cold-start prior",
+      "prior": "0.167 0.167 0.167 0.167 0.167 0.167",
+      "costs": "0.00 0.03 0.08"
+    },
+    {
+      "scenario": "high_prior",
+      "description": "buyer mix shifted toward higher-valuation patient buyers",
+      "prior": "0.050 0.090 0.140 0.190 0.250 0.280",
+      "costs": "0.00 0.03 0.08"
+    }
+  ],
+  "pricing": [
+    {
+      "method": "Paper forced-choice",
+      "prices": "0.220 0.390 0.700 1.020",
+      "empirical_train_realized": 0.26865416666666664,
+      "empirical_test_realized": 0.27486825000000004,
+      "markov_nominal_cost_0": 0.17179937611813997,
+      "markov_nominal_cost_003": 0.16580114715542,
+      "markov_nominal_cost_008": 0.068,
+      "markov_oos_prior_cost_003": 0.062164382385139993,
+      "markov_worst_prior_cost": 0.029563999999999997
+    },
+    {
+      "method": "Independent",
+      "prices": "0.120 0.250 0.400 0.720",
+      "empirical_train_realized": 0.32447583333333335,
+      "empirical_test_realized": 0.327978875,
+      "markov_nominal_cost_0": 0.3007002198510756,
+      "markov_nominal_cost_003": 0.283821987110574,
+      "markov_nominal_cost_008": 0.19110621143335,
+      "markov_oos_prior_cost_003": 0.1927391833930296,
+      "markov_worst_prior_cost": 0.14901673714445
+    },
+    {
+      "method": "IR-aware",
+      "prices": "0.150 0.300 0.520 0.720",
+      "empirical_train_realized": 0.3661375,
+      "empirical_test_realized": 0.3745908,
+      "markov_nominal_cost_0": 0.268889968442012,
+      "markov_nominal_cost_003": 0.263377987915632,
+      "markov_nominal_cost_008": 0.18738860706840002,
+      "markov_oos_prior_cost_003": 0.17023762155592562,
+      "markov_worst_prior_cost": 0.13658686902279998
+    },
+    {
+      "method": "Robust IR",
+      "prices": "0.200 0.250 0.310 0.500",
+      "empirical_train_realized": 0.33266166666666674,
+      "empirical_test_realized": 0.33671657499999996,
+      "markov_nominal_cost_0": 0.3069880497940883,
+      "markov_nominal_cost_003": 0.24781563419934124,
+      "markov_nominal_cost_008": 0.177783277572442,
+      "markov_oos_prior_cost_003": 0.1729234427548728,
+      "markov_worst_prior_cost": 0.1316592341572776
+    },
+    {
+      "method": "Cost-aware Markov",
+      "prices": "0.150 0.250 0.400 0.500",
+      "empirical_train_realized": 0.32604375,
+      "empirical_test_realized": 0.32978812500000004,
+      "markov_nominal_cost_0": 0.321571533452702,
+      "markov_nominal_cost_003": 0.308204168854718,
+      "markov_nominal_cost_008": 0.19582845488661002,
+      "markov_oos_prior_cost_003": 0.223128603433192,
+      "markov_worst_prior_cost": 0.15918711875270003
+    },
+    {
+      "method": "Robust cost-aware Markov",
+      "prices": "0.150 0.210 0.220 0.350",
+      "empirical_train_realized": 0.24977124999999997,
+      "empirical_test_realized": 0.25166252499999997,
+      "markov_nominal_cost_0": 0.2522383592567352,
+      "markov_nominal_cost_003": 0.2346764388069672,
+      "markov_nominal_cost_008": 0.2081751824561912,
+      "markov_oos_prior_cost_003": 0.2048996217703456,
+      "markov_worst_prior_cost": 0.18566079691522885
+    }
+  ],
+  "pricing_multi_instance": [
+    {
+      "method": "Paper forced-choice",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.1450947087296469,
+      "markov_nominal_cost_003_se": 0.027251156522243962,
+      "markov_oos_prior_cost_003_mean": 0.06732958156042959,
+      "markov_oos_prior_cost_003_se": 0.013712224842735057,
+      "markov_worst_prior_cost_mean": 0.04173755120366489,
+      "markov_worst_prior_cost_se": 0.009438769901209804
+    },
+    {
+      "method": "Independent",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.2600224149515001,
+      "markov_nominal_cost_003_se": 0.010679915568265462,
+      "markov_oos_prior_cost_003_mean": 0.16983561578496376,
+      "markov_oos_prior_cost_003_se": 0.005315759636290211,
+      "markov_worst_prior_cost_mean": 0.1526584193663466,
+      "markov_worst_prior_cost_se": 0.0026361831477584195
+    },
+    {
+      "method": "IR-aware",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.22170867752278833,
+      "markov_nominal_cost_003_se": 0.025004946749835628,
+      "markov_oos_prior_cost_003_mean": 0.15029572986855444,
+      "markov_oos_prior_cost_003_se": 0.013084397451883278,
+      "markov_worst_prior_cost_mean": 0.12574069404805593,
+      "markov_worst_prior_cost_se": 0.007249423307586613
+    },
+    {
+      "method": "Robust IR",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.26436616356444176,
+      "markov_nominal_cost_003_se": 0.01575082821203509,
+      "markov_oos_prior_cost_003_mean": 0.18141547170080613,
+      "markov_oos_prior_cost_003_se": 0.012964588758050859,
+      "markov_worst_prior_cost_mean": 0.14111424976399287,
+      "markov_worst_prior_cost_se": 0.011247915238061509
+    },
+    {
+      "method": "Cost-aware Markov",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.30718963368450963,
+      "markov_nominal_cost_003_se": 0.011617419614014152,
+      "markov_oos_prior_cost_003_mean": 0.20789921434977648,
+      "markov_oos_prior_cost_003_se": 0.00560322976483332,
+      "markov_worst_prior_cost_mean": 0.1613913494969451,
+      "markov_worst_prior_cost_se": 0.003422010539342299
+    },
+    {
+      "method": "Robust cost-aware Markov",
+      "n": 5,
+      "markov_nominal_cost_003_mean": 0.24198747211258925,
+      "markov_nominal_cost_003_se": 0.013145180812743077,
+      "markov_oos_prior_cost_003_mean": 0.20409347480616521,
+      "markov_oos_prior_cost_003_se": 0.004543655837434739,
+      "markov_worst_prior_cost_mean": 0.18428675679039097,
+      "markov_worst_prior_cost_se": 0.0033195153314230642
+    }
+  ],
+  "discovery": [
+    {
+      "method": "Data-Bandit",
+      "final_test_utility": 0.746,
+      "normalized_auc": 0.694875,
+      "calls_to_95pct_oracle_gain": 17,
+      "first_four_call_mean": 0.5415
+    },
+    {
+      "method": "Data-All",
+      "final_test_utility": 0.596,
+      "normalized_auc": 0.5469999999999999,
+      "calls_to_95pct_oracle_gain": 17,
+      "first_four_call_mean": 0.5015000000000001
+    },
+    {
+      "method": "Data-Alt",
+      "final_test_utility": 0.8059999999999999,
+      "normalized_auc": 0.66775,
+      "calls_to_95pct_oracle_gain": 12,
+      "first_four_call_mean": 0.5345
+    },
+    {
+      "method": "AutoML",
+      "final_test_utility": 0.506,
+      "normalized_auc": 0.504875,
+      "calls_to_95pct_oracle_gain": 17,
+      "first_four_call_mean": 0.5015000000000001
+    },
+    {
+      "method": "Pricing-guided Data-Bandit",
+      "final_test_utility": 0.8059999999999999,
+      "normalized_auc": 0.75825,
+      "calls_to_95pct_oracle_gain": 13,
+      "first_four_call_mean": 0.735
+    }
+  ],
+  "discovery_signal_ablation": [
+    {
+      "method": "Data-Bandit",
+      "n": 12,
+      "final_test_utility_mean": 0.8005165313936328,
+      "final_test_utility_se": 0.0046896294617987605,
+      "normalized_auc_mean": 0.719060319070706,
+      "normalized_auc_se": 0.004216850307991885,
+      "calls_to_95pct_oracle_gain_mean": 10.333333333333334,
+      "calls_to_95pct_oracle_gain_se": 1.2811768579763456,
+      "first_four_call_mean_mean": 0.5418133273528306,
+      "first_four_call_mean_se": 0.0009246653049382646
+    },
+    {
+      "method": "Random-signal guided",
+      "n": 12,
+      "final_test_utility_mean": 0.7871475106154312,
+      "final_test_utility_se": 0.008749144231268425,
+      "normalized_auc_mean": 0.7587611560646965,
+      "normalized_auc_se": 0.008131753156880138,
+      "calls_to_95pct_oracle_gain_mean": 11.333333333333334,
+      "calls_to_95pct_oracle_gain_se": 1.410637795431198,
+      "first_four_call_mean_mean": 0.7096216346878732,
+      "first_four_call_mean_se": 0.014686530919388386
+    },
+    {
+      "method": "Noisy-pricing guided",
+      "n": 12,
+      "final_test_utility_mean": 0.8023044730126477,
+      "final_test_utility_se": 0.002758444057999136,
+      "normalized_auc_mean": 0.7755846558532768,
+      "normalized_auc_se": 0.00522842386574684,
+      "calls_to_95pct_oracle_gain_mean": 9.5,
+      "calls_to_95pct_oracle_gain_se": 1.5200677815828019,
+      "first_four_call_mean_mean": 0.7565557780154034,
+      "first_four_call_mean_se": 0.007131224188029074
+    },
+    {
+      "method": "Pricing-guided Data-Bandit",
+      "n": 12,
+      "final_test_utility_mean": 0.8063259595546793,
+      "final_test_utility_se": 0.0019089493371758522,
+      "normalized_auc_mean": 0.7763512736546833,
+      "normalized_auc_se": 0.007025834605545737,
+      "calls_to_95pct_oracle_gain_mean": 8.166666666666666,
+      "calls_to_95pct_oracle_gain_se": 1.7269404252385874,
+      "first_four_call_mean_mean": 0.7630289287395399,
+      "first_four_call_mean_se": 0.009449997856109518
+    }
+  ]
+}

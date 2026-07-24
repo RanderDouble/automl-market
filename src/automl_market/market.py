@@ -245,7 +245,6 @@ def expected_payment_dp(
 
     for t in range(horizon):
         next_distribution = np.zeros_like(distribution)
-        transition = p[0] if p.shape[0] == 1 else p[t]
         for best in range(v.size):
             for current in range(v.size):
                 probability = distribution[best, current]
@@ -256,6 +255,7 @@ def expected_payment_dp(
                     if not allow_no_purchase or net[best] >= -1e-12:
                         revenue += probability * x[best]
                     continue
+                transition = p[0] if p.shape[0] == 1 else p[t]
                 for nxt, transition_probability in enumerate(transition[current]):
                     if transition_probability == 0:
                         continue

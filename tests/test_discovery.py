@@ -13,6 +13,7 @@ from automl_market.discovery import (
     ScoreTable,
     calls_to_fraction,
     paired_bootstrap_mean_ci,
+    pricing_guided_discovery,
     run_discovery_methods,
 )
 
@@ -40,6 +41,23 @@ class DiscoveryTests(unittest.TestCase):
         for curve in curves.values():
             self.assertEqual(len(curve), 20)
             self.assertTrue(np.all(np.diff(curve) >= -1e-12))
+
+    def test_pricing_signal_adds_guided_discovery_method(self) -> None:
+        signal = np.array([0.0, 0.0, 1.0, 0.0])
+        curves = run_discovery_methods(self.table, budget=4, seed=3, price_signal=signal)
+        self.assertIn("Pricing-guided Data-Bandit", curves)
+        self.assertEqual(len(curves["Pricing-guided Data-Bandit"]), 4)
+
+    def test_pricing_guided_discovery_prioritizes_high_signal_augmentation(self) -> None:
+        signal = np.array([0.0, 0.0, 1.0, 0.0])
+        curve = pricing_guided_discovery(
+            self.table,
+            budget=1,
+            seed=3,
+            price_signal=signal,
+            price_weight=1.0,
+        )
+        self.assertGreaterEqual(curve[0], 0.67)
 
     def test_data_all_reaches_validation_selected_oracle(self) -> None:
         curve = run_discovery_methods(self.table, budget=20, seed=3)["Data-All"]

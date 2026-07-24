@@ -17,6 +17,7 @@ from automl_market.market import (
     stopping_distribution_dp,
     stopping_time_for_trajectory,
 )
+from automl_market.dynamic_pricing import expected_markov_revenue, optimize_cost_aware_price_grid
 from automl_market.learning import smoothed_bayesian_learning
 from automl_market.milp import solve_pricing_milp
 from automl_market.pricing import (
@@ -71,6 +72,25 @@ class MarketTests(unittest.TestCase):
         )
         self.assertAlmostEqual(no_sale, 0.0)
 
+    def test_exact_markov_payment_supports_time_indexed_transitions(self) -> None:
+        initial = np.array([1.0, 0.0])
+        transitions = np.array(
+            [
+                [[0.5, 0.5], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0]],
+            ]
+        )
+        payment = expected_payment_dp(
+            np.array([0.2, 1.0]),
+            np.array([0.1, 0.6]),
+            initial,
+            transitions,
+            horizon=3,
+            discovery_cost=0.05,
+            allow_no_purchase=True,
+        )
+        self.assertAlmostEqual(payment, 0.6)
+
     def test_exact_stopping_distribution_matches_deterministic_path_case(self) -> None:
         initial = np.array([1.0, 0.0])
         transition = np.array([[0.0, 1.0], [0.0, 1.0]])
@@ -88,7 +108,10 @@ class MarketTests(unittest.TestCase):
         _, policy = optimal_stopping_dp(
             valuations, prices, transition, horizon=2, discovery_cost=0.1
         )
-        self.assertEqual(stopping_time_for_trajectory(np.array([0, 1]), valuations, prices, policy), 2)
+        self.assertEqual(
+            stopping_time_for_trajectory(np.array([0, 1]), valuations, prices, policy),
+            2,
+        )
 
     def test_outside_option_removes_unrealizable_revenue(self) -> None:
         valuations = np.array([[1.0, 1.2], [0.2, 0.3]])
@@ -98,6 +121,14 @@ class MarketTests(unittest.TestCase):
         forced = expected_revenue(prices, valuations, prior, paths, force_purchase=True)
         realized = expected_revenue(prices, valuations, prior, paths, force_purchase=False)
         self.assertGreater(forced, realized)
+
+    def test_availability_bitmask_rejects_large_quality_spaces(self) -> None:
+        valuations = np.ones((1, 61))
+        prior = np.array([1.0])
+        paths = np.arange(61, dtype=np.int64)[None, :]
+        prices = np.zeros(61)
+        with self.assertRaisesRegex(ValueError, "bit-mask compression"):
+            expected_revenue(prices, valuations, prior, paths)
 
     def test_ir_grid_optimizer_matches_simple_monopoly_solution(self) -> None:
         valuations = np.array([[0.2], [1.0]])
@@ -175,6 +206,40 @@ class MarketTests(unittest.TestCase):
             )
             self.assertEqual(history.shape, (6, 2))
             self.assertTrue(np.all(np.isfinite(kl)))
+
+    def test_cost_aware_grid_reports_worst_case_markov_revenue(self) -> None:
+        valuations = np.array([[0.3, 1.0], [0.7, 1.0]])
+        prior = np.array([0.7, 0.3])
+        initial = np.array([1.0, 0.0])
+        transition = np.array([[0.0, 1.0], [0.0, 1.0]])
+        price_grids = [np.array([0.3, 0.7]), np.array([0.5, 1.0])]
+        costs = [0.0, 0.45]
+
+        result = optimize_cost_aware_price_grid(
+            valuations,
+            prior,
+            initial,
+            transition,
+            horizon=2,
+            discovery_costs=costs,
+            price_grids=price_grids,
+            robust=True,
+        )
+
+        scenario_revenues = [
+            expected_markov_revenue(
+                result.prices,
+                valuations,
+                prior,
+                initial,
+                transition,
+                horizon=2,
+                discovery_cost=cost,
+            )
+            for cost in costs
+        ]
+        self.assertAlmostEqual(result.objective, min(scenario_revenues))
+        self.assertEqual(result.evaluated_curves, 4)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,10 @@
 """Reproduction utilities for data-augmented AutoML marketplace pricing."""
 
-from .dynamic_pricing import expected_markov_revenue, optimize_markov_price_grid
+from .dynamic_pricing import (
+    expected_markov_revenue,
+    optimize_cost_aware_price_grid,
+    optimize_markov_price_grid,
+)
 from .market import (
     expected_payment_dp,
     optimal_stopping_dp,
@@ -18,6 +22,7 @@ __all__ = [
     "optimize_price_grid",
     "optimize_shift_prices",
     "optimize_jiggle_prices",
+    "optimize_cost_aware_price_grid",
     "optimize_markov_price_grid",
     "simulate_markov_trajectories",
     "stopping_distribution_dp",

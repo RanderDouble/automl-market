@@ -1,17 +1,23 @@
 PYTHON ?= python
 export SOURCE_DATE_EPOCH := 1784131200
+export XDG_CACHE_HOME ?= /tmp/automl-market-cache
 
 LATEX_BUILD_ROOT ?= /tmp/automl-market-latex
 DELIVERABLE_DIR := deliverables
 
-.PHONY: test experiment rq1 paper-experiments results report slides \
-	rq-handout deliverables all clean
+.PHONY: test experiment legacy-experiment improvements rq1 paper-experiments results report slides \
+	rq-handout paper-summary deliverables all clean
 
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
 
-experiment:
+experiment: legacy-experiment
+
+legacy-experiment:
 	MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src $(PYTHON) scripts/run_experiments.py
+
+improvements:
+	MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src $(PYTHON) scripts/run_improvement_experiments.py
 
 rq1:
 	MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src $(PYTHON) scripts/run_rq1.py
@@ -19,7 +25,7 @@ rq1:
 paper-experiments:
 	MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src $(PYTHON) scripts/run_paper_experiments.py
 
-results: experiment rq1 paper-experiments
+results: experiment improvements rq1 paper-experiments
 
 report:
 	mkdir -p $(LATEX_BUILD_ROOT)/report $(DELIVERABLE_DIR)
@@ -40,7 +46,15 @@ rq-handout:
 	cp $(LATEX_BUILD_ROOT)/rq-handout/rq1_rq3_handout.pdf \
 		$(DELIVERABLE_DIR)/rq1_rq3_handout.pdf
 
-deliverables: report slides rq-handout
+paper-summary:
+	mkdir -p $(LATEX_BUILD_ROOT)/paper-summary
+	cd papers && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
+		-output-directory=$(LATEX_BUILD_ROOT)/paper-summary \
+		Han2023_Optimal_Pricing_Data-Augmented_AutoML_summary.tex
+	cp $(LATEX_BUILD_ROOT)/paper-summary/Han2023_Optimal_Pricing_Data-Augmented_AutoML_summary.pdf \
+		papers/Han2023_Optimal_Pricing_Data-Augmented_AutoML_summary.pdf
+
+deliverables: report slides rq-handout paper-summary
 
 all: test results deliverables
 
