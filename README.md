@@ -2,7 +2,7 @@
 
 课程大作业 C.3 的中文讲解、实验复现、机制改进和报告工程。项目主线是论文提出的“按数据增强带来的模型性能提升定价”：平台不按原始数据表数量、数据体量或计算搜索成本收费，而是对可测模型质量提升发布价格曲线。当前项目在解释并复现 RQ1/RQ2/RQ3 的基础上，把 forced-choice 指标与可退出市场的语义差距、先验冷启动、搜索成本忽略和发现--定价脱节四个部署边界做成了可运行、可测试、可出图的补充实验。
 
-建议先阅读 [`docs/paper_walkthrough.md`](docs/paper_walkthrough.md)。它按“市场流程 → 最优停止 → MILP 定价 → 先验学习 → Data-Bandit → 三个研究问题”的顺序讲解论文，并标出公式、代码和结果之间的对应关系。准备实际运行时，再按 [`docs/reproduction_guide.md`](docs/reproduction_guide.md) 逐项核对实验协议、命令、指标和输出文件。机制改进部分见 [`docs/improvement_results.md`](docs/improvement_results.md)。
+建议先阅读 [`docs/paper_walkthrough.md`](docs/paper_walkthrough.md)。它按“市场流程 → 最优停止 → MILP 定价 → 先验学习 → Data-Bandit → 三个研究问题”的顺序讲解论文，并标出公式、代码和结果之间的对应关系。准备实际运行时，再按 [`docs/reproduction_guide.md`](docs/reproduction_guide.md) 逐项核对实验协议、命令、指标和输出文件。机制改进的简要结果见 [`docs/improvement_results.md`](docs/improvement_results.md)，含概念、公式和伪代码的独立技术报告源码见 [`docs/improvement_technical_report.tex`](docs/improvement_technical_report.tex)。
 
 ## 已实现内容
 
@@ -34,6 +34,7 @@ make improvements
 make rq1
 make paper-experiments
 make report
+make improvement-report
 ```
 
 若希望通过 `conda run` 直接指定环境：
@@ -49,6 +50,7 @@ conda run -n automl-market make all
 - `make rq1`：60 个公开数据重复任务；
 - `make paper-experiments`：10 个 RQ2 任务与 5 种先验、3 种学习率的 RQ3；
 - `make report`：使用现有结果生成中文 PDF；
+- `make improvement-report`：生成机制改进技术报告（概念、公式、伪代码、实验和边界）；
 - `make slides` / `make rq-handout`：生成统一展示与 RQ1/RQ3 讲义；
 - `make paper-summary`：更新论文中文摘要 PDF；
 - `make all`：测试、刷新全部实验并生成报告、展示和讲义。
@@ -78,6 +80,7 @@ MPLCONFIGDIR=/tmp/matplotlib-cache PYTHONPATH=src \
 - `results/tables/improvement_*.csv`：机制改进表格；
 - `results/figures/improvement_*.pdf|png`：机制改进图；
 - `deliverables/final_report.pdf`：当前可提交的完整中文实验报告；
+- `deliverables/improvement_technical_report.pdf`：四项机制改进的独立详细技术报告；
 - `deliverables/project_slides.pdf`：统一项目展示；
 - `deliverables/rq1_rq3_handout.pdf`：RQ1/RQ3 详细讲义；
 - `report/main.tex`：报告源码；

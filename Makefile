@@ -6,7 +6,7 @@ LATEX_BUILD_ROOT ?= /tmp/automl-market-latex
 DELIVERABLE_DIR := deliverables
 
 .PHONY: test experiment legacy-experiment improvements rq1 paper-experiments results report slides \
-	rq-handout paper-summary deliverables all clean
+	rq-handout improvement-report paper-summary deliverables all clean
 
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
@@ -46,6 +46,14 @@ rq-handout:
 	cp $(LATEX_BUILD_ROOT)/rq-handout/rq1_rq3_handout.pdf \
 		$(DELIVERABLE_DIR)/rq1_rq3_handout.pdf
 
+improvement-report:
+	mkdir -p $(LATEX_BUILD_ROOT)/improvement-report $(DELIVERABLE_DIR)
+	cd docs && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
+		-output-directory=$(LATEX_BUILD_ROOT)/improvement-report \
+		improvement_technical_report.tex
+	cp $(LATEX_BUILD_ROOT)/improvement-report/improvement_technical_report.pdf \
+		$(DELIVERABLE_DIR)/improvement_technical_report.pdf
+
 paper-summary:
 	mkdir -p $(LATEX_BUILD_ROOT)/paper-summary
 	cd papers && latexmk -xelatex -interaction=nonstopmode -halt-on-error \
@@ -54,7 +62,7 @@ paper-summary:
 	cp $(LATEX_BUILD_ROOT)/paper-summary/Han2023_Optimal_Pricing_Data-Augmented_AutoML_summary.pdf \
 		papers/Han2023_Optimal_Pricing_Data-Augmented_AutoML_summary.pdf
 
-deliverables: report slides rq-handout paper-summary
+deliverables: report slides rq-handout improvement-report paper-summary
 
 all: test results deliverables
 

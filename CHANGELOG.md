@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - 2026-07-24
+
+- 新增独立的机制改进技术报告，按概念、部署问题、数学目标、伪代码、实验结果和适用边界详细解释四项改进。
+- 新增 `make improvement-report`，将 XeLaTeX 构建产物统一输出为 `deliverables/improvement_technical_report.pdf`，并纳入 `make deliverables` / `make all`。
+- 更新 README、交付说明和项目进度，明确报告源码、生成命令及可核验的代码—公式—结果映射。
+
 ## 0.7.0 - 2026-07-24
 
 - 合并机制改进分支：新增有限场景鲁棒定价、成本感知 Markov 定价、Pricing-guided Data-Bandit 及完整改进实验流水线。
